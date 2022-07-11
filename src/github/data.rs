@@ -9,7 +9,7 @@ pub struct GitHubUser {
     pub login: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct GitHubComment {
     pub id: u64,
     pub body: Option<String>,

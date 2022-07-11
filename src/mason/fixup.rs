@@ -45,6 +45,11 @@ async fn make_generate(spawner: &ContextualSpawn<'_>) -> Result<()> {
     spawner.spawn("make", ["generate"]).await
 }
 
+async fn stylua(spawner: &ContextualSpawn<'_>) -> Result<()> {
+    println!("Running stylua...");
+    spawner.spawn("stylua", ["."]).await
+}
+
 async fn commit_and_push(spawner: &ContextualSpawn<'_>) -> Result<()> {
     println!("Commiting changes and pushing...");
     spawner.spawn("git", ["add", "."]).await?;
@@ -57,7 +62,7 @@ async fn commit_and_push(spawner: &ContextualSpawn<'_>) -> Result<()> {
 
 pub async fn run(
     action: &AuthorizedAction<MasonCommand>,
-) -> Result<Box<dyn Display>, (Status, anyhow::Error)> {
+) -> Result<Box<dyn Display + Send>, (Status, anyhow::Error)> {
     let pr = action
         .context
         .get_pull_request()
@@ -89,6 +94,7 @@ pub async fn run(
         clone_repo(&spawner, &pr.head).await?;
         checkout_ref(&spawner, &pr.head).await?;
         make_generate(&spawner).await?;
+        stylua(&spawner).await?;
         commit_and_push(&spawner).await?;
         Ok::<(), anyhow::Error>(())
     };
