@@ -54,7 +54,7 @@ async fn commit_and_push(spawner: &ContextualSpawn<'_>) -> Result<()> {
     println!("Commiting changes and pushing...");
     spawner.spawn("git", ["add", "."]).await?;
     spawner
-        .spawn("git", ["commit", "-m", "chore: run make generate"])
+        .spawn("git", ["commit", "-m", "fixup"])
         .await?;
     spawner.spawn("git", ["push"]).await?;
     Ok(())
