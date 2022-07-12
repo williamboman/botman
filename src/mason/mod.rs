@@ -61,6 +61,6 @@ pub async fn index(event: GitHubIssueComment) -> Status {
                 Status::NoContent
             }
         },
-        GitHubIssueCommentAction::Updated | GitHubIssueCommentAction::Deleted => Status::NoContent,
+        GitHubIssueCommentAction::Edited | GitHubIssueCommentAction::Deleted => Status::NoContent,
     }
 }

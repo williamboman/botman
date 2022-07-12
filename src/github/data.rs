@@ -155,7 +155,7 @@ impl Serialize for GitHubReaction {
 #[serde(rename_all = "snake_case")]
 pub enum GitHubIssueCommentAction {
     Created,
-    Updated,
+    Edited,
     Deleted,
 }
 
