@@ -23,11 +23,9 @@ impl<'a> ContextualSpawn<'a> {
         if output.status.success() {
             Ok(())
         } else {
-            Err(anyhow!(
-                "{} failed\n{}",
-                cmd,
-                String::from_utf8_lossy(&output.stderr)
-            ))
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            eprintln!("cmd {} failed:\n{}", cmd, stderr);
+            Err(anyhow!("{} failed\n{}", cmd, stderr))
         }
     }
 }

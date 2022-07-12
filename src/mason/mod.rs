@@ -58,12 +58,6 @@ pub async fn index(event: GitHubIssueComment) -> Status {
             },
             Err(err) => {
                 println!("Failed to parse action from comment: {:?}", err);
-                let _ = client::create_issue_comment_reaction(
-                    &repo,
-                    &comment,
-                    &GitHubReaction::MinusOne,
-                )
-                .await;
                 Status::NoContent
             }
         },
