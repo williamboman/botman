@@ -5,7 +5,7 @@ use crate::{
         data::{GitHubReaction, GitHubRef},
     },
     spawn::ContextualSpawn,
-    GITHUB_LOGIN, GITHUB_PAT,
+    GITHUB_PAT,
 };
 use anyhow::{anyhow, Result};
 use rocket::http::Status;
@@ -20,13 +20,14 @@ async fn clone_repo(spawner: &ContextualSpawn<'_>, github_ref: &GitHubRef) -> Re
             "git",
             [
                 "clone",
+                "-c",
+                format!(
+                    "http.https://github.com/.extraheader=AUTHORIZATION: basic {}",
+                    base64::encode(format!("x-access-token:{}", GITHUB_PAT.as_str()))
+                )
+                .as_str(),
                 "--",
-                github_ref
-                    .repo
-                    .as_git_url(
-                        format!("{}:{}", GITHUB_LOGIN.as_str(), GITHUB_PAT.as_str()).as_str(),
-                    )
-                    .as_str(),
+                github_ref.repo.as_git_url().as_str(),
                 ".",
             ],
         )
@@ -38,6 +39,35 @@ async fn checkout_ref(spawner: &ContextualSpawn<'_>, github_ref: &GitHubRef) -> 
     spawner
         .spawn("git", ["checkout", github_ref.r#ref.as_str()])
         .await
+}
+
+async fn merge_upstream(spawner: &ContextualSpawn<'_>, github_ref: &GitHubRef) -> Result<()> {
+    println!("Merging with {}", github_ref.r#ref);
+    spawner
+        .spawn(
+            "git",
+            [
+                "remote",
+                "add",
+                "upstream",
+                github_ref.repo.as_git_url().as_str(),
+            ],
+        )
+        .await?;
+    spawner.spawn("git", ["fetch", "upstream", "HEAD"]).await?;
+    spawner
+        .spawn(
+            "git",
+            [
+                "merge",
+                "--no-edit",
+                "-m",
+                "Merge latest upstream",
+                "FETCH_HEAD",
+            ],
+        )
+        .await?;
+    Ok(())
 }
 
 async fn make_generate(spawner: &ContextualSpawn<'_>) -> Result<()> {
@@ -53,9 +83,7 @@ async fn stylua(spawner: &ContextualSpawn<'_>) -> Result<()> {
 async fn commit_and_push(spawner: &ContextualSpawn<'_>) -> Result<()> {
     println!("Commiting changes and pushing...");
     spawner.spawn("git", ["add", "."]).await?;
-    spawner
-        .spawn("git", ["commit", "-m", "fixup"])
-        .await?;
+    spawner.spawn("git", ["commit", "-m", "fixup"]).await?;
     spawner.spawn("git", ["push"]).await?;
     Ok(())
 }
@@ -93,6 +121,7 @@ pub async fn run(
     let runner = async {
         clone_repo(&spawner, &pr.head).await?;
         checkout_ref(&spawner, &pr.head).await?;
+        merge_upstream(&spawner, &pr.base).await?;
         make_generate(&spawner).await?;
         stylua(&spawner).await?;
         commit_and_push(&spawner).await?;

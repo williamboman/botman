@@ -62,10 +62,10 @@ pub struct GitHubRepo {
 }
 
 impl GitHubRepo {
-    pub fn as_git_url(&self, basic_auth: &str) -> String {
+    pub fn as_git_url(&self) -> String {
         format!(
-            "https://{}@github.com/{}/{}.git",
-            basic_auth, self.full_name.owner, self.full_name.name
+            "https://github.com/{}/{}.git",
+            self.full_name.owner, self.full_name.name
         )
     }
 
