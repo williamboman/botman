@@ -54,7 +54,9 @@ async fn merge_upstream(spawner: &ContextualSpawn<'_>, github_ref: &GitHubRef) -
             ],
         )
         .await?;
-    spawner.spawn("git", ["fetch", "upstream", "HEAD"]).await?;
+    spawner
+        .spawn("git", ["fetch", "upstream", &github_ref.r#ref])
+        .await?;
     spawner
         .spawn(
             "git",
@@ -63,7 +65,7 @@ async fn merge_upstream(spawner: &ContextualSpawn<'_>, github_ref: &GitHubRef) -
                 "--no-edit",
                 "-m",
                 "Merge latest upstream",
-                "FETCH_HEAD",
+                format!("upstream/{}", github_ref.r#ref).as_str(),
             ],
         )
         .await?;
