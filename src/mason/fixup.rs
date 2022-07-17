@@ -120,7 +120,7 @@ pub async fn run(
         cwd: tmp_dir.path(),
     };
 
-    let runner = async {
+    async {
         clone_repo(&spawner, &pr.head).await?;
         checkout_ref(&spawner, &pr.head).await?;
         merge_upstream(&spawner, &pr.base).await?;
@@ -128,14 +128,12 @@ pub async fn run(
         stylua(&spawner).await?;
         commit_and_push(&spawner).await?;
         Ok::<(), anyhow::Error>(())
-    };
-
-    runner
-        .await
-        .map_err(|err| (Status::InternalServerError, err))?;
+    }
+    .await
+    .map_err(|err| (Status::InternalServerError, err))?;
 
     Ok(Box::new(format!(
-        "Successfully ran mason generate in {:?}",
+        "Successfully ran mason fixup in {:?}",
         pr.head
     )))
 }
