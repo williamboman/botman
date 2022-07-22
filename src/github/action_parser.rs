@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use std::{fmt::Debug, str::FromStr};
 
 use super::{client, data::*};
@@ -13,10 +13,10 @@ impl FromStr for Actionee {
         match s.get(..1) {
             Some("@") => match s.get(1..) {
                 Some(user @ "williambotman") => Ok(Actionee(user.to_owned())),
-                Some(user) => Err(anyhow!("{} is not an allowed user.", user)),
-                None => Err(anyhow!("{} is not a valid mention.", s)),
+                Some(user) => bail!("{} is not an allowed user.", user),
+                None => bail!("{} is not a valid mention.", s),
             },
-            Some(_) | None => Err(anyhow!("{} is not a valid mention.", s)),
+            Some(_) | None => bail!("{} is not a valid mention.", s),
         }
     }
 }
@@ -30,7 +30,7 @@ impl FromStr for AuthorizedUser {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             user @ "williamboman" => Ok(AuthorizedUser(user.to_owned())),
-            user => Err(anyhow!("{} is not an allowed user.", user)),
+            user => bail!("{} is not an allowed user.", user),
         }
     }
 }
@@ -55,7 +55,7 @@ impl FromStr for RawCommand {
     fn from_str(command_body: &str) -> Result<Self, Self::Err> {
         match command_body.get(..1) {
             Some("/") => match command_body.get(1..) {
-                Some(trimmed_body) => match trimmed_body.split_once(" ") {
+                Some(body) => match body.split_once(char::is_whitespace) {
                     Some((raw_command, raw_arguments)) => Ok(Self {
                         raw_command: (*raw_command).to_owned(),
                         raw_arguments: Some((*raw_arguments).to_owned()),
@@ -65,9 +65,10 @@ impl FromStr for RawCommand {
                         raw_arguments: None,
                     }),
                 },
-                None => Err(anyhow!("{} is not a valid command.", command_body)),
+
+                None => bail!("{} is not a valid command.", command_body),
             },
-            Some(_) | None => Err(anyhow!("{} is not a valid command", command_body)),
+            Some(_) | None => bail!("{} is not a valid command", command_body),
         }
     }
 }
@@ -105,6 +106,7 @@ where
 
         let actionee = mention.parse()?;
         let command = command.parse::<RawCommand>()?.try_into()?;
+
         Ok(Self { actionee, command })
     }
 }

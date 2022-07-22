@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::{CLIENT, GITHUB_PAT};
 
 use super::data::{GitHubComment, GitHubReaction, GitHubRepo};
-use anyhow::{anyhow, Result};
+use anyhow::{bail, Result};
 use reqwest::{
     header::{HeaderMap, ACCEPT, AUTHORIZATION, USER_AGENT},
     Response,
@@ -53,12 +53,12 @@ pub async fn create_issue_comment_reaction(
         );
         Ok(())
     } else {
-        Err(anyhow!(
+        bail!(
             "Failed to create issue comment reaction {:?} {:?} {:?}",
             reaction,
             comment,
             repo
-        ))
+        )
     }
 }
 

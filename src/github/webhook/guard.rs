@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use hmac::{Mac,Hmac};
 use rocket::{data::{FromData, self}, Request, Data, http::Status};
 use sha2::Sha256;
@@ -22,7 +22,7 @@ impl FromStr for GitHubSignature {
                 payload: hex::decode(payload)?,
             })
         } else {
-            Err(anyhow!("Bad GitHubSignature format."))
+            bail!("Bad GitHubSignature format.")
         }
     }
 }
