@@ -22,6 +22,7 @@ pub(super) async fn run(
     let workspace = Workspace::create(&action).await?;
 
     async {
+        workspace.merge_with_base().await?;
         make_generate(&workspace).await?;
         stylua(&workspace).await?;
         workspace.commit_and_push("fixup").await?;

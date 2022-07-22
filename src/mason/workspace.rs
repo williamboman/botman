@@ -14,67 +14,6 @@ use tokio::io::AsyncWriteExt;
 
 use super::MasonCommand;
 
-pub(super) async fn clone_repo(workspace: &Workspace) -> Result<()> {
-    println!("Cloning {:?}…", workspace.head.repo.full_name);
-    workspace
-        .spawn(
-            "git",
-            [
-                "clone",
-                "-c",
-                format!(
-                    "http.https://github.com/.extraheader=AUTHORIZATION: basic {}",
-                    base64::encode(format!("x-access-token:{}", GITHUB_PAT.as_str()))
-                )
-                .as_str(),
-                "--",
-                workspace.head.repo.as_git_url().as_str(),
-                ".",
-            ],
-        )
-        .await
-}
-
-pub(super) async fn checkout_ref(workspace: &Workspace) -> Result<()> {
-    println!("Checking out {}", workspace.head.r#ref);
-    workspace
-        .spawn("git", ["checkout", workspace.head.r#ref.as_str()])
-        .await
-}
-
-pub(super) async fn merge_with_base(workspace: &Workspace) -> Result<()> {
-    println!("Merging with {}", workspace.base.r#ref);
-    workspace
-        .spawn(
-            "git",
-            [
-                "remote",
-                "add",
-                "upstream",
-                workspace.base.repo.as_git_url().as_str(),
-            ],
-        )
-        .await?;
-    workspace
-        .spawn("git", ["fetch", "upstream", &workspace.base.r#ref])
-        .await?;
-    workspace
-        .spawn(
-            "git",
-            [
-                "merge",
-                "--no-edit",
-                "-X",
-                "ours",
-                "-m",
-                "Merge upstream",
-                format!("upstream/{}", workspace.base.r#ref).as_str(),
-            ],
-        )
-        .await?;
-    Ok(())
-}
-
 #[derive(Debug)]
 pub(super) struct Workspace {
     pub workdir: TempDir,
@@ -120,9 +59,8 @@ impl Workspace {
         };
 
         async {
-            clone_repo(&workspace).await?;
-            checkout_ref(&workspace).await?;
-            merge_with_base(&workspace).await?;
+            workspace.clone_repo().await?;
+            workspace.checkout_ref().await?;
             Ok::<(), anyhow::Error>(())
         }
         .await
@@ -136,6 +74,62 @@ impl Workspace {
         self.spawn("git", ["commit", "-m", commit_msg]).await?;
         self.spawn("git", ["push"]).await?;
         Ok(())
+    }
+
+    pub async fn merge_with_base(&self) -> Result<()> {
+        println!("Merging with {}", self.base.r#ref);
+        self.spawn(
+            "git",
+            [
+                "remote",
+                "add",
+                "upstream",
+                self.base.repo.as_git_url().as_str(),
+            ],
+        )
+        .await?;
+        self.spawn("git", ["fetch", "upstream", &self.base.r#ref])
+            .await?;
+        self.spawn(
+            "git",
+            [
+                "merge",
+                "--no-edit",
+                "-X",
+                "ours",
+                "-m",
+                "Merge upstream",
+                format!("upstream/{}", self.base.r#ref).as_str(),
+            ],
+        )
+        .await?;
+        Ok(())
+    }
+
+    async fn clone_repo(&self) -> Result<()> {
+        println!("Cloning {:?}…", self.head.repo.full_name);
+        self.spawn(
+            "git",
+            [
+                "clone",
+                "-c",
+                format!(
+                    "http.https://github.com/.extraheader=AUTHORIZATION: basic {}",
+                    base64::encode(format!("x-access-token:{}", GITHUB_PAT.as_str()))
+                )
+                .as_str(),
+                "--",
+                self.head.repo.as_git_url().as_str(),
+                ".",
+            ],
+        )
+        .await
+    }
+
+    async fn checkout_ref(&self) -> Result<()> {
+        println!("Checking out {}", self.head.r#ref);
+        self.spawn("git", ["checkout", self.head.r#ref.as_str()])
+            .await
     }
 
     pub async fn spawn<I, S>(&self, cmd: S, args: I) -> Result<()>
