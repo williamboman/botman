@@ -58,6 +58,8 @@ pub(super) async fn merge_with_base(spawner: &ContextualSpawn, base: &GitHubRef)
             [
                 "merge",
                 "--no-edit",
+                "-X",
+                "theirs",
                 "-m",
                 "Merge upstream",
                 format!("upstream/{}", base.r#ref).as_str(),
