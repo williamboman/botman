@@ -10,7 +10,6 @@ extern crate lazy_static;
 
 mod github;
 mod mason;
-mod spawn;
 
 // TODO: verify these exist at startup
 lazy_static! {

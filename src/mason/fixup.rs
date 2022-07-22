@@ -8,18 +8,18 @@ use super::{workspace::Workspace, MasonCommand};
 
 async fn make_generate(workspace: &Workspace) -> Result<()> {
     println!("Generating code...");
-    workspace.spawner.spawn("make", ["generate"]).await
+    workspace.spawn("make", ["generate"]).await
 }
 
 async fn stylua(workspace: &Workspace) -> Result<()> {
     println!("Running stylua...");
-    workspace.spawner.spawn("stylua", ["."]).await
+    workspace.spawn("stylua", ["."]).await
 }
 
 pub(super) async fn run(
     action: &AuthorizedAction<MasonCommand>,
 ) -> Result<Box<dyn Display + Send>, (Status, anyhow::Error)> {
-    let workspace = super::workspace::setup(&action).await?;
+    let workspace = Workspace::create(&action).await?;
 
     async {
         make_generate(&workspace).await?;
@@ -31,7 +31,7 @@ pub(super) async fn run(
     .map_err(|err| (Status::InternalServerError, err))?;
 
     Ok(Box::new(format!(
-        "Successfully ran mason fixup in {}",
+        "Successfully ran mason fixup in {:?}",
         workspace
     )))
 }

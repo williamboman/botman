@@ -8,7 +8,6 @@ use super::{workspace::Workspace, GitApplyPatch, MasonCommand};
 async fn apply_patch(workspace: &Workspace, patch: &GitApplyPatch) -> Result<()> {
     println!("Applying patch\n{}", patch.patch);
     workspace
-        .spawner
         .spawn_with_stdin(
             "git",
             ["apply", "--", "-"],
@@ -22,7 +21,7 @@ pub(super) async fn run(
     action: &AuthorizedAction<MasonCommand>,
     patch: &GitApplyPatch,
 ) -> Result<Box<dyn Display + Send>, (Status, anyhow::Error)> {
-    let workspace = super::workspace::setup(action).await?;
+    let workspace = Workspace::create(action).await?;
 
     async {
         apply_patch(&workspace, patch).await?;
@@ -33,7 +32,7 @@ pub(super) async fn run(
     .map_err(|err| (Status::InternalServerError, err))?;
 
     Ok(Box::new(format!(
-        "Successfully ran mason apply in {}",
+        "Successfully ran mason apply in {:?}",
         workspace
     )))
 }
