@@ -13,10 +13,6 @@ RUN curl -fsSL https://github.com/neovim/neovim/releases/download/v0.7.2/nvim-li
 RUN tar -xvzf /opt/nvim.tar.gz --strip-components=1 -C /opt/nvim
 ENV PATH="/opt/nvim/bin:${PATH}"
 
-RUN git clone --depth 1 https://github.com/williamboman/mason.nvim ~/.local/share/nvim/site/pack/vendor/start/mason.nvim
-ENV PATH="~/.local/share/nvim/mason/bin:${PATH}"
-RUN mkdir -p ~/.config/nvim && echo 'require("mason").setup()' > ~/.config/nvim/init.lua
-
 # Install runtime deps
 RUN cargo install stylua
 
