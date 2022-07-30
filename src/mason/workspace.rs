@@ -68,10 +68,15 @@ impl Workspace {
         Ok(workspace)
     }
 
-    pub async fn commit_and_push(&self, commit_msg: &str) -> Result<()> {
-        println!("Commiting changes and pushing...");
+    pub async fn commit(&self, commit_msg: &str) -> Result<()> {
+        println!("Committing changes...");
         self.spawn("git", ["add", "."]).await?;
         self.spawn("git", ["commit", "-m", commit_msg]).await?;
+        Ok(())
+    }
+
+    pub async fn push(&self) -> Result<()> {
+        println!("Pushing changes...");
         self.spawn("git", ["push"]).await?;
         Ok(())
     }

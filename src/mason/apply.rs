@@ -25,7 +25,8 @@ pub(super) async fn run(
 
     async {
         apply_patch(&workspace, patch).await?;
-        workspace.commit_and_push("apply diff").await?;
+        workspace.commit("apply diff").await?;
+        workspace.push().await?;
         Ok::<(), anyhow::Error>(())
     }
     .await
