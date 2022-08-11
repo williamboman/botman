@@ -12,6 +12,7 @@ pub struct GitHubUser {
 #[derive(Deserialize, Debug, Clone)]
 pub struct GitHubComment {
     pub id: u64,
+    pub node_id: String,
     pub body: Option<String>,
     pub user: GitHubUser,
 }

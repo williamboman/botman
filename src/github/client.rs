@@ -9,6 +9,7 @@ use reqwest::{
     Response,
 };
 use serde::Serialize;
+use serde_json::{json, Map, Value};
 
 // TODO maybe create a struct or something idk
 
@@ -35,6 +36,10 @@ pub async fn create_issue_comment_reaction(
     comment: &GitHubComment,
     reaction: &GitHubReaction,
 ) -> Result<()> {
+    println!(
+        "Creating issue comment reaction {:?} {:?} {:?}",
+        reaction, comment, repo
+    );
     let response = post_json(
         format!(
             "{}/issues/comments/{}/reactions",
@@ -47,10 +52,6 @@ pub async fn create_issue_comment_reaction(
     .await?;
 
     if response.status().is_success() {
-        println!(
-            "Creating issue comment reaction {:?} {:?} {:?}",
-            reaction, comment, repo
-        );
         Ok(())
     } else {
         bail!(
@@ -62,6 +63,55 @@ pub async fn create_issue_comment_reaction(
     }
 }
 
+const MINIMIZE_COMMENT_MUTATION: &str = r#"
+mutation minimizeComment($input: MinimizeCommentInput!) {
+    minimizeComment(input: $input) {
+        minimizedComment {
+            isMinimized
+        }
+    }
+}
+"#;
+
+#[allow(non_camel_case_types, dead_code)]
+#[derive(Serialize)]
+enum ReportedContentClassifier {
+    ABUSE,
+    DUPLICATE,
+    OFF_TOPIC,
+    OUTDATED,
+    RESOLVED,
+    SPAM,
+}
+
+#[allow(non_snake_case)]
+#[derive(Serialize)]
+struct MinimizeCommentInput {
+    classifier: ReportedContentClassifier,
+    clientMutationId: Option<String>,
+    subjectId: String,
+}
+
+pub async fn minimize_comment(comment: &GitHubComment) -> Result<()> {
+    println!("Minimizing comment {:?}", comment);
+    let mut variables = Map::new();
+    variables.insert(
+        "input".to_owned(),
+        json!(MinimizeCommentInput {
+            classifier: ReportedContentClassifier::RESOLVED,
+            clientMutationId: None, // dafuq is this?
+            subjectId: comment.node_id.to_owned(),
+        }),
+    );
+    let response = graphql(&GraphqlQuery {
+        query: MINIMIZE_COMMENT_MUTATION.to_owned(),
+        variables: Some(variables),
+    })
+    .await?;
+    println!("I minimized comment!!! {}", response.text().await?);
+    Ok(())
+}
+
 pub async fn get(url: &str) -> Result<Response, reqwest::Error> {
     CLIENT.get(url).headers(HEADERS.clone()).send().await
 }
@@ -71,6 +121,21 @@ pub async fn post_json<P: Serialize>(url: &str, payload: &P) -> Result<Response,
         .post(url)
         .headers(HEADERS.clone())
         .json(payload)
+        .send()
+        .await
+}
+
+#[derive(Serialize)]
+pub struct GraphqlQuery {
+    query: String,
+    variables: Option<Map<String, Value>>,
+}
+
+pub async fn graphql(query: &GraphqlQuery) -> Result<Response, reqwest::Error> {
+    CLIENT
+        .post("https://api.github.com/graphql")
+        .headers(HEADERS.clone())
+        .json(query)
         .send()
         .await
 }

@@ -48,6 +48,10 @@ impl Workspace {
         .await
         .map_err(|err| (Status::ServiceUnavailable, err))?;
 
+        client::minimize_comment(action.context.get_trigger())
+            .await
+            .map_err(|err| (Status::ServiceUnavailable, err))?;
+
         let base = pr.base;
         let head = pr.head;
 
