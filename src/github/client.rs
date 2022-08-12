@@ -3,12 +3,13 @@ use std::collections::HashMap;
 use crate::{CLIENT, GITHUB_PAT};
 
 use super::data::{GitHubComment, GitHubReaction, GitHubRepo};
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use reqwest::{
     header::{HeaderMap, ACCEPT, AUTHORIZATION, USER_AGENT},
     Response,
 };
-use serde::Serialize;
+use rocket::serde::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 
 // TODO maybe create a struct or something idk
@@ -73,6 +74,24 @@ mutation minimizeComment($input: MinimizeCommentInput!) {
 }
 "#;
 
+#[derive(Deserialize)]
+#[allow(non_camel_case_types, non_snake_case)]
+struct MinimizedComment {
+    pub isMinimized: bool,
+}
+
+#[derive(Deserialize)]
+#[allow(non_camel_case_types, non_snake_case)]
+struct MinimizeComment {
+    pub minimizedComment: MinimizedComment,
+}
+
+#[derive(Deserialize)]
+#[allow(non_camel_case_types, non_snake_case)]
+struct MinimizeCommentResponse {
+    pub minimizeComment: MinimizeComment,
+}
+
 #[allow(non_camel_case_types, dead_code)]
 #[derive(Serialize)]
 enum ReportedContentClassifier {
@@ -103,13 +122,18 @@ pub async fn minimize_comment(comment: &GitHubComment) -> Result<()> {
             subjectId: comment.node_id.to_owned(),
         }),
     );
-    let response = graphql(&GraphqlQuery {
+    let data = graphql::<MinimizeCommentResponse>(&GraphqlQuery {
         query: MINIMIZE_COMMENT_MUTATION.to_owned(),
         variables: Some(variables),
     })
-    .await?;
-    println!("I minimized comment!!! {}", response.text().await?);
-    Ok(())
+    .await?
+    .ok()?;
+
+    if data.minimizeComment.minimizedComment.isMinimized {
+        Ok(())
+    } else {
+        bail!("Failed to minimize comment.")
+    }
 }
 
 pub async fn get(url: &str) -> Result<Response, reqwest::Error> {
@@ -131,11 +155,65 @@ pub struct GraphqlQuery {
     variables: Option<Map<String, Value>>,
 }
 
-pub async fn graphql(query: &GraphqlQuery) -> Result<Response, reqwest::Error> {
-    CLIENT
+#[derive(Deserialize)]
+pub struct GraphqlErrorLocation {
+    pub line: u32,
+    pub column: u32,
+}
+
+#[derive(Deserialize)]
+pub struct GraphqlError {
+    pub message: String,
+    pub locations: Vec<GraphqlErrorLocation>,
+    pub path: Vec<String>,
+}
+
+#[derive(Deserialize)]
+pub struct GraphqlResponseEnvelope<Data> {
+    pub data: Option<Data>,
+    pub errors: Option<Vec<GraphqlError>>,
+}
+
+impl<Data> GraphqlResponseEnvelope<Data> {
+    fn ok(self) -> Result<Data> {
+        match self {
+            Self {
+                data: Some(data),
+                errors: None,
+            } => Ok(data),
+
+            Self {
+                data: None,
+                errors: Some(errors),
+            }
+            | Self {
+                data: Some(_),
+                errors: Some(errors),
+            } => Err(anyhow!("Oh noes").context(format!(
+                "{:?}",
+                errors
+                    .iter()
+                    .map(|err| err.message.as_str())
+                    .collect::<Vec<&str>>()
+            ))),
+
+            Self {
+                data: None,
+                errors: None,
+            } => Err(anyhow!("Missing both data and errors.")),
+        }
+    }
+}
+
+pub async fn graphql<Data: DeserializeOwned>(
+    query: &GraphqlQuery,
+) -> Result<GraphqlResponseEnvelope<Data>> {
+    let response = CLIENT
         .post("https://api.github.com/graphql")
         .headers(HEADERS.clone())
         .json(query)
         .send()
-        .await
+        .await?;
+
+    Ok(response.json().await?)
 }
