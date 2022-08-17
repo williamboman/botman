@@ -23,7 +23,7 @@ async fn restore_generated_code(workspace: &Workspace) -> Result<()> {
             "git",
             [
                 "checkout",
-                workspace.base.r#ref.as_str(),
+                format!("upstream/{}", workspace.base.r#ref).as_str(),
                 "--",
                 "PACKAGES.md",
                 "lua/mason-schemas",
