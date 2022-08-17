@@ -34,7 +34,7 @@ impl Workspace {
                 (
                     Status::NoContent,
                     anyhow!(
-                        "Umm... there's no pull request associated with {:?}",
+                        "Umm… there's no pull request associated with {:?}",
                         action.context
                     ),
                 )
@@ -73,14 +73,14 @@ impl Workspace {
     }
 
     pub async fn commit(&self, commit_msg: &str) -> Result<()> {
-        println!("Committing changes...");
+        println!("Committing changes…");
         self.spawn("git", ["add", "."]).await?;
         self.spawn("git", ["commit", "-m", commit_msg]).await?;
         Ok(())
     }
 
     pub async fn push(&self) -> Result<()> {
-        println!("Pushing changes...");
+        println!("Pushing changes…");
         self.spawn("git", ["push"]).await?;
         Ok(())
     }

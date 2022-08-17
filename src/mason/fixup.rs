@@ -7,13 +7,29 @@ use std::fmt::Display;
 use super::{workspace::Workspace, MasonCommand};
 
 async fn make_generate(workspace: &Workspace) -> Result<()> {
-    println!("Generating code...");
+    println!("Generating code…");
     workspace.spawn("make", ["generate"]).await
 }
 
 async fn stylua(workspace: &Workspace) -> Result<()> {
-    println!("Running stylua...");
+    println!("Running stylua…");
     workspace.spawn("stylua", ["."]).await
+}
+
+async fn restore_generated_code(workspace: &Workspace) -> Result<()> {
+    println!("Restoring generated code…");
+    workspace
+        .spawn(
+            "git",
+            [
+                "checkout",
+                workspace.base.r#ref.as_str(),
+                "--",
+                "PACKAGES.md",
+                "lua/mason-schemas",
+            ],
+        )
+        .await
 }
 
 pub(super) async fn run(
@@ -25,6 +41,7 @@ pub(super) async fn run(
         workspace.merge_with_base().await?;
         make_generate(&workspace).await?;
         stylua(&workspace).await?;
+        let _ = restore_generated_code(&workspace).await?;
         let _ = workspace.commit("fixup").await;
         workspace.push().await?;
         Ok::<(), anyhow::Error>(())
