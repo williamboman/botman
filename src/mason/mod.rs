@@ -85,6 +85,7 @@ pub async fn index(event: GitHubIssueComment) -> Status {
                     Status::NoContent
                 }
                 Err((status, err)) => {
+                    let _ = client::unminimize_comment(&comment).await;
                     let _ = client::create_issue_comment_reaction(
                         &repo,
                         &comment,

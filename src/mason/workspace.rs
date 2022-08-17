@@ -87,16 +87,6 @@ impl Workspace {
 
     pub async fn merge_with_base(&self) -> Result<()> {
         println!("Merging with {}", self.base.r#ref);
-        self.spawn(
-            "git",
-            [
-                "remote",
-                "add",
-                "upstream",
-                self.base.repo.as_git_url().as_str(),
-            ],
-        )
-        .await?;
         self.spawn("git", ["fetch", "upstream", &self.base.r#ref])
             .await?;
         self.spawn(
@@ -132,7 +122,19 @@ impl Workspace {
                 ".",
             ],
         )
-        .await
+        .await?;
+        self.spawn(
+            "git",
+            [
+                "remote",
+                "add",
+                "upstream",
+                self.base.repo.as_git_url().as_str(),
+            ],
+        )
+        .await?;
+        self.spawn("git", ["fetch", "upstream"]).await?;
+        Ok(())
     }
 
     async fn checkout_ref(&self) -> Result<()> {

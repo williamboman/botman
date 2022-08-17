@@ -74,6 +74,16 @@ mutation minimizeComment($input: MinimizeCommentInput!) {
 }
 "#;
 
+const UNMINIMIZE_COMMENT_MUTATION: &str = r#"
+mutation unminimizeComment($input: UnminimizeCommentInput!) {
+    unminimizeComment(input: $input) {
+        unminimizedComment {
+            isMinimized
+        }
+    }
+}
+"#;
+
 #[derive(Deserialize)]
 #[allow(non_camel_case_types, non_snake_case)]
 struct MinimizedComment {
@@ -92,6 +102,18 @@ struct MinimizeCommentResponse {
     pub minimizeComment: MinimizeComment,
 }
 
+#[derive(Deserialize)]
+#[allow(non_camel_case_types, non_snake_case)]
+struct UnminimizeComment {
+    pub unminimizedComment: MinimizedComment,
+}
+
+#[derive(Deserialize)]
+#[allow(non_camel_case_types, non_snake_case)]
+struct UnminimizeCommentResponse {
+    pub unminimizeComment: UnminimizeComment,
+}
+
 #[allow(non_camel_case_types, dead_code)]
 #[derive(Serialize)]
 enum ReportedContentClassifier {
@@ -107,6 +129,13 @@ enum ReportedContentClassifier {
 #[derive(Serialize)]
 struct MinimizeCommentInput {
     classifier: ReportedContentClassifier,
+    clientMutationId: Option<String>,
+    subjectId: String,
+}
+
+#[allow(non_snake_case)]
+#[derive(Serialize)]
+struct UnminimizeCommentInput {
     clientMutationId: Option<String>,
     subjectId: String,
 }
@@ -133,6 +162,30 @@ pub async fn minimize_comment(comment: &GitHubComment) -> Result<()> {
         Ok(())
     } else {
         bail!("Failed to minimize comment.")
+    }
+}
+
+pub async fn unminimize_comment(comment: &GitHubComment) -> Result<()> {
+    println!("Unminimizing comment {:?}", comment);
+    let mut variables = Map::new();
+    variables.insert(
+        "input".to_owned(),
+        json!(UnminimizeCommentInput {
+            clientMutationId: None, // dafuq is this?
+            subjectId: comment.node_id.to_owned(),
+        }),
+    );
+    let data = graphql::<UnminimizeCommentResponse>(&GraphqlQuery {
+        query: UNMINIMIZE_COMMENT_MUTATION.to_owned(),
+        variables: Some(variables),
+    })
+    .await?
+    .ok()?;
+
+    if !data.unminimizeComment.unminimizedComment.isMinimized {
+        Ok(())
+    } else {
+        bail!("Failed to unminimize comment.")
     }
 }
 

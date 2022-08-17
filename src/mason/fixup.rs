@@ -41,7 +41,7 @@ pub(super) async fn run(
         workspace.merge_with_base().await?;
         make_generate(&workspace).await?;
         stylua(&workspace).await?;
-        let _ = restore_generated_code(&workspace).await?;
+        let _ = restore_generated_code(&workspace).await;
         let _ = workspace.commit("fixup").await;
         workspace.push().await?;
         Ok::<(), anyhow::Error>(())
