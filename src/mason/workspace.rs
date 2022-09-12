@@ -117,6 +117,8 @@ impl Workspace {
                     base64::encode(format!("x-access-token:{}", GITHUB_PAT.as_str()))
                 )
                 .as_str(),
+                "-c",
+                "checkout.defaultRemote=origin",
                 "--",
                 self.head.repo.as_git_url().as_str(),
                 ".",
