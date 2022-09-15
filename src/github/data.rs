@@ -169,14 +169,70 @@ pub struct GitHubIssueComment {
 }
 
 #[derive(Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum GitHubIssuesAction {
+    Opened,
+    Edited,
+    Deleted,
+    Pinned,
+    Unpinned,
+    Closed,
+    Reopened,
+    Assigned,
+    Unassigned,
+    Labeled,
+    Unlabeled,
+    Locked,
+    Unlocked,
+    Transferred,
+    Milestoned,
+    Demilestoned,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct GitHubIssues {
+    pub action: GitHubIssuesAction,
+    pub issue: GitHubIssue,
+    pub repository: GitHubRepo,
+    pub sender: GitHubUser,
+}
+
+#[derive(Deserialize, Debug)]
 pub struct GitHubIssuePullRequest {
     pub url: String,
     pub merged_at: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum GitHubIssueState {
+    Open,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct GitHubIssueLabel {
+    pub id: u64,
+    pub name: String,
+    pub description: String,
+}
+
+#[derive(Deserialize, Debug)]
 pub struct GitHubIssue {
     pub id: u64,
+    pub number: u64,
     pub user: GitHubUser,
+    pub title: String,
+    pub body: Option<String>,
+    pub assignees: Vec<GitHubUser>,
+    pub locked: bool,
+    pub comments: u64,
+    pub labels: Vec<GitHubIssueLabel>,
+    pub state: GitHubIssueState,
     pub pull_request: Option<GitHubIssuePullRequest>,
+}
+
+impl GitHubIssue {
+    pub fn has_label(&self, label: &str) -> bool {
+        self.labels.iter().any(|l| l.name == label)
+    }
 }

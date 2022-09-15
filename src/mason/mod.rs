@@ -3,7 +3,11 @@ use std::fmt::Display;
 use crate::github::{
     action_parser::*,
     client,
-    data::{GitHubIssueComment, GitHubIssueCommentAction, GitHubReaction},
+    data::{
+        GitHubIssueComment, GitHubIssueCommentAction, GitHubIssues, GitHubIssuesAction,
+        GitHubReaction,
+    },
+    webhook::guard::GitHubWebhook,
 };
 use anyhow::{anyhow, bail, Result};
 use rocket::http::Status;
@@ -73,8 +77,7 @@ impl AuthorizedAction<MasonCommand> {
     }
 }
 
-#[post("/v1/mason/issue-comment", format = "json", data = "<event>")]
-pub async fn index(event: GitHubIssueComment) -> Status {
+async fn issue_comment(event: GitHubIssueComment) -> Status {
     let repo = event.repository.clone();
     let comment = event.comment.clone();
     match event.action {
@@ -102,5 +105,33 @@ pub async fn index(event: GitHubIssueComment) -> Status {
             }
         },
         GitHubIssueCommentAction::Edited | GitHubIssueCommentAction::Deleted => Status::NoContent,
+    }
+}
+
+const NEW_PACKAGE_COMMENT: &str = r#"Hello! Pull requests are always very welcomed to add new packages. If the distribution of the package is simple, the installation will most likely be so as well. See [CONTRIBUTING.md](https://github.com/williamboman/mason.nvim/blob/main/CONTRIBUTING.md) and the [API reference](https://github.com/williamboman/mason.nvim/blob/main/doc/reference.md) for more details! You may also use existing packages as reference."#;
+
+async fn issue_event(event: GitHubIssues) -> Status {
+    match event.action {
+        GitHubIssuesAction::Opened => {
+            if event.issue.has_label("new-package-request") {
+                let _ = client::create_issue_comment(
+                    &event.repository,
+                    &event.issue,
+                    NEW_PACKAGE_COMMENT,
+                )
+                .await;
+            }
+            Status::NoContent
+        }
+        _ => Status::NoContent,
+    }
+}
+
+#[post("/v1/mason/github-webhook", format = "json", data = "<webhook>")]
+pub async fn index(webhook: GitHubWebhook) -> Status {
+    println!("{:?}", webhook);
+    match webhook {
+        GitHubWebhook::IssueComment(event) => issue_comment(event).await,
+        GitHubWebhook::Issues(event) => issue_event(event).await,
     }
 }

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{CLIENT, GITHUB_PAT};
 
-use super::data::{GitHubComment, GitHubReaction, GitHubRepo};
+use super::data::{GitHubComment, GitHubIssue, GitHubReaction, GitHubRepo};
 use anyhow::{anyhow, bail, Result};
 use reqwest::{
     header::{HeaderMap, ACCEPT, AUTHORIZATION, USER_AGENT},
@@ -32,6 +32,39 @@ lazy_static! {
     };
 }
 
+const COMMENT_FOOTER: &str = r#"
+
+<sup>` 🤖 This is an automated comment. `  [` 📖 Source code `](https://github.com/williamboman/botman)</sup>"#;
+
+pub async fn create_issue_comment(
+    repo: &GitHubRepo,
+    issue: &GitHubIssue,
+    comment: &str,
+) -> Result<()> {
+    let merged_comment = comment.to_string() + COMMENT_FOOTER;
+    println!(
+        "Creating issue comment {:?} {:?} {:?}",
+        merged_comment, issue, repo
+    );
+    let response = post_json(
+        format!("{}/issues/{}/comments", repo.as_api_url(), issue.number).as_str(),
+        &HashMap::from([("body", &merged_comment)]),
+    )
+    .await?;
+
+    if response.status().is_success() {
+        Ok(())
+    } else {
+        eprintln!("{:?}", response);
+        bail!(
+            "Failed to create issue comment {:?} {:?} {:?}",
+            merged_comment,
+            issue,
+            repo
+        )
+    }
+}
+
 pub async fn create_issue_comment_reaction(
     repo: &GitHubRepo,
     comment: &GitHubComment,
@@ -55,6 +88,7 @@ pub async fn create_issue_comment_reaction(
     if response.status().is_success() {
         Ok(())
     } else {
+        eprintln!("{:?}", response);
         bail!(
             "Failed to create issue comment reaction {:?} {:?} {:?}",
             reaction,

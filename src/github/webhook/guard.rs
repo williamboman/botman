@@ -1,10 +1,18 @@
-use anyhow::{anyhow, bail};
-use hmac::{Mac,Hmac};
-use rocket::{data::{FromData, self}, Request, Data, http::Status};
+use anyhow::{anyhow, bail, Result};
+use hmac::{Hmac, Mac};
+use rocket::{
+    data::{self, FromData},
+    http::Status,
+    Data, Request,
+};
+use serde::Deserialize;
 use sha2::Sha256;
 use std::str::FromStr;
 
-use crate::{GITHUB_WEBHOOK_SECRET, github::data::GitHubIssueComment};
+use crate::{
+    github::data::{GitHubIssueComment, GitHubIssues},
+    GITHUB_WEBHOOK_SECRET,
+};
 
 #[derive(Debug)]
 pub struct GitHubSignature {
@@ -27,8 +35,14 @@ impl FromStr for GitHubSignature {
     }
 }
 
+#[derive(Debug)]
+pub enum GitHubWebhook {
+    IssueComment(GitHubIssueComment),
+    Issues(GitHubIssues),
+}
+
 #[async_trait]
-impl<'r> FromData<'r> for GitHubIssueComment {
+impl<'r> FromData<'r> for GitHubWebhook {
     type Error = anyhow::Error;
 
     async fn from_data(req: &'r Request<'_>, data: Data<'r>) -> data::Outcome<'r, Self> {
@@ -54,10 +68,10 @@ impl<'r> FromData<'r> for GitHubIssueComment {
             .and_then(|s| s.parse::<GitHubSignature>().ok())
         {
             if let Ok(()) = hmac.verify_slice(&signature.payload) {
-                match serde_json::from_str(&payload_str) {
+                return match parse_and_map_json(req, &payload_str) {
                     Ok(value) => data::Outcome::Success(value),
-                    Err(err) => data::Outcome::Failure((Status::UnprocessableEntity, err.into())),
-                }
+                    Err(err) => data::Outcome::Failure(err),
+                };
             } else {
                 return data::Outcome::Failure((
                     Status::Forbidden,
@@ -70,5 +84,29 @@ impl<'r> FromData<'r> for GitHubIssueComment {
                 anyhow!("Bad or missing signature."),
             ));
         }
+    }
+}
+
+fn parse<'r, T: Deserialize<'r>>(payload: &'r str) -> Result<T, (Status, anyhow::Error)> {
+    serde_json::from_str::<T>(&payload).map_err(|x| (Status::UnprocessableEntity, anyhow!(x)))
+}
+
+fn parse_and_map_json<'r>(
+    request: &'r Request<'_>,
+    payload: &'r str,
+) -> Result<GitHubWebhook, (Status, anyhow::Error)> {
+    match request.headers().get_one("X-GitHub-Event") {
+        Some("issue_comment") => {
+            parse::<GitHubIssueComment>(payload).map(GitHubWebhook::IssueComment)
+        }
+        Some("issues") => parse::<GitHubIssues>(payload).map(GitHubWebhook::Issues),
+        Some(event) => Err((
+            Status::NotImplemented,
+            anyhow!("Event {} is not supported.", event),
+        )),
+        None => Err((
+            Status::BadRequest,
+            anyhow!("Missing X-GitHub-Event header."),
+        )),
     }
 }
