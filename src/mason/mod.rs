@@ -110,6 +110,14 @@ async fn issue_comment(event: GitHubIssueComment) -> Status {
 
 const NEW_PACKAGE_COMMENT: &str = r#"Hello! Pull requests are always very welcomed to add new packages. If the distribution of the package is simple, the installation will most likely be so as well. See [CONTRIBUTING.md](https://github.com/williamboman/mason.nvim/blob/main/CONTRIBUTING.md) and the [API reference](https://github.com/williamboman/mason.nvim/blob/main/doc/reference.md) for more details! You may also use existing packages as reference."#;
 
+lazy_static! {
+    static ref MASON_PROJECT_ID: u64 = 14574269;
+    static ref MASON_PROJECT_COLUMN_PRIO_ID: u64 = 19009769;
+    static ref MASON_PROJECT_COLUMN_BACKLOG_ID: u64 = 19009770;
+    static ref MASON_PROJECT_COLUMN_SUPPORT_ID: u64 = 19114644;
+    static ref MASON_PROJECT_COLUMN_CLOSED_ID: u64 = 19009772;
+}
+
 async fn issue_event(event: GitHubIssues) -> Status {
     match event.action {
         GitHubIssuesAction::Opened => {
@@ -120,6 +128,12 @@ async fn issue_event(event: GitHubIssues) -> Status {
                     NEW_PACKAGE_COMMENT,
                 )
                 .await;
+                let _ =
+                    client::create_column_card(*MASON_PROJECT_COLUMN_PRIO_ID, event.issue.id).await;
+            } else {
+                let _ =
+                    client::create_column_card(*MASON_PROJECT_COLUMN_BACKLOG_ID, event.issue.id)
+                        .await;
             }
             Status::NoContent
         }

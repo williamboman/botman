@@ -98,6 +98,25 @@ pub async fn create_issue_comment_reaction(
     }
 }
 
+pub async fn create_column_card(column_id: u64, issue_id: u64) -> Result<()> {
+    println!("Creating column card {} {}", column_id, issue_id);
+    let response = post_json(
+        format!("projects/columns/{}/cards", column_id).as_str(),
+        &HashMap::from([
+            ("content_type", "Issue"),
+            ("content_id", &issue_id.to_string()),
+        ]),
+    )
+    .await?;
+
+    if response.status().is_success() {
+        Ok(())
+    } else {
+        eprintln!("{:?}", response);
+        bail!("Failed to create column card {} {}", column_id, issue_id);
+    }
+}
+
 const MINIMIZE_COMMENT_MUTATION: &str = r#"
 mutation minimizeComment($input: MinimizeCommentInput!) {
     minimizeComment(input: $input) {
