@@ -95,7 +95,7 @@ pub async fn add_labels_to_issue(
 ) -> Result<Response> {
     println!("Adding labels to issue {:?} {}", labels, issue_number);
     post_json(
-        format!("repos/{}/issues/{}/labels", repo.as_api_url(), issue_number).as_str(),
+        format!("{}/issues/{}/labels", repo.as_api_url(), issue_number).as_str(),
         &HashMap::from([("labels", &labels)]),
     )
     .await
@@ -111,7 +111,11 @@ pub async fn add_labels_to_issue(
 pub async fn create_column_card(column_id: u64, issue_id: u64) -> Result<Response> {
     println!("Creating column card {} {}", column_id, issue_id);
     post_json(
-        format!("projects/columns/{}/cards", column_id).as_str(),
+        format!(
+            "https://api.github.com/projects/columns/{}/cards",
+            column_id
+        )
+        .as_str(),
         &HashMap::from([
             ("content_type", "Issue"),
             ("content_id", &issue_id.to_string()),
