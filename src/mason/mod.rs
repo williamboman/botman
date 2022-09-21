@@ -122,14 +122,19 @@ async fn issue_event(event: GitHubIssues) -> Status {
     match event.action {
         GitHubIssuesAction::Opened => {
             if event.issue.has_label("new-package-request") {
-                let _ = client::create_issue_comment(
-                    &event.repository,
-                    &event.issue,
-                    NEW_PACKAGE_COMMENT,
-                )
-                .await;
-                let _ =
-                    client::create_column_card(*MASON_PROJECT_COLUMN_PRIO_ID, event.issue.id).await;
+                let _ = rocket::tokio::try_join!(
+                    client::create_issue_comment(
+                        &event.repository,
+                        &event.issue,
+                        NEW_PACKAGE_COMMENT,
+                    ),
+                    client::create_column_card(*MASON_PROJECT_COLUMN_PRIO_ID, event.issue.id),
+                    client::add_labels_to_issue(
+                        &event.repository,
+                        vec!["help wanted"],
+                        event.issue.number,
+                    )
+                );
             } else {
                 let _ =
                     client::create_column_card(*MASON_PROJECT_COLUMN_BACKLOG_ID, event.issue.id)

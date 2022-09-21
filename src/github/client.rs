@@ -40,41 +40,36 @@ pub async fn create_issue_comment(
     repo: &GitHubRepo,
     issue: &GitHubIssue,
     comment: &str,
-) -> Result<()> {
+) -> Result<Response> {
     let merged_comment = comment.to_string() + COMMENT_FOOTER;
     println!(
         "Creating issue comment {:?} {:?} {:?}",
         merged_comment, issue, repo
     );
-    let response = post_json(
+    post_json(
         format!("{}/issues/{}/comments", repo.as_api_url(), issue.number).as_str(),
         &HashMap::from([("body", &merged_comment)]),
     )
-    .await?;
-
-    if response.status().is_success() {
-        Ok(())
-    } else {
-        eprintln!("{:?}", response);
-        bail!(
+    .await
+    .inspect_err(|e| {
+        eprintln!("{}", e);
+        eprintln!(
             "Failed to create issue comment {:?} {:?} {:?}",
-            merged_comment,
-            issue,
-            repo
+            merged_comment, issue, repo
         )
-    }
+    })
 }
 
 pub async fn create_issue_comment_reaction(
     repo: &GitHubRepo,
     comment: &GitHubComment,
     reaction: &GitHubReaction,
-) -> Result<()> {
+) -> Result<Response> {
     println!(
         "Creating issue comment reaction {:?} {:?} {:?}",
         reaction, comment, repo
     );
-    let response = post_json(
+    post_json(
         format!(
             "{}/issues/comments/{}/reactions",
             repo.as_api_url(),
@@ -83,38 +78,50 @@ pub async fn create_issue_comment_reaction(
         .as_str(),
         &HashMap::from([("content", reaction)]),
     )
-    .await?;
-
-    if response.status().is_success() {
-        Ok(())
-    } else {
-        eprintln!("{:?}", response);
-        bail!(
+    .await
+    .inspect_err(|e| {
+        eprintln!("{}", e);
+        eprintln!(
             "Failed to create issue comment reaction {:?} {:?} {:?}",
-            reaction,
-            comment,
-            repo
+            reaction, comment, repo
         )
-    }
+    })
 }
 
-pub async fn create_column_card(column_id: u64, issue_id: u64) -> Result<()> {
+pub async fn add_labels_to_issue(
+    repo: &GitHubRepo,
+    labels: Vec<&str>,
+    issue_number: u64,
+) -> Result<Response> {
+    println!("Adding labels to issue {:?} {}", labels, issue_number);
+    post_json(
+        format!("repos/{}/issues/{}/labels", repo.as_api_url(), issue_number).as_str(),
+        &HashMap::from([("labels", &labels)]),
+    )
+    .await
+    .inspect_err(|e| {
+        eprintln!("{}", e);
+        eprintln!(
+            "Failed to add labels to issue #{} {:?}",
+            issue_number, labels
+        );
+    })
+}
+
+pub async fn create_column_card(column_id: u64, issue_id: u64) -> Result<Response> {
     println!("Creating column card {} {}", column_id, issue_id);
-    let response = post_json(
+    post_json(
         format!("projects/columns/{}/cards", column_id).as_str(),
         &HashMap::from([
             ("content_type", "Issue"),
             ("content_id", &issue_id.to_string()),
         ]),
     )
-    .await?;
-
-    if response.status().is_success() {
-        Ok(())
-    } else {
-        eprintln!("{:?}", response);
-        bail!("Failed to create column card {} {}", column_id, issue_id);
-    }
+    .await
+    .inspect_err(|e| {
+        eprintln!("{}", e);
+        eprintln!("Failed to create column card {} {}", column_id, issue_id);
+    })
 }
 
 const MINIMIZE_COMMENT_MUTATION: &str = r#"
@@ -242,17 +249,47 @@ pub async fn unminimize_comment(comment: &GitHubComment) -> Result<()> {
     }
 }
 
-pub async fn get(url: &str) -> Result<Response, reqwest::Error> {
-    CLIENT.get(url).headers(HEADERS.clone()).send().await
+pub async fn get(url: &str) -> Result<Response> {
+    let response = CLIENT.get(url).headers(HEADERS.clone()).send().await;
+    match response {
+        Ok(response) if response.status().is_success() => Ok(response),
+        Ok(err_response) => {
+            eprintln!("{:?}", err_response);
+            bail!(
+                "Failed to fetch url {}, response status: {}",
+                url,
+                err_response.status()
+            )
+        }
+        Err(err) => {
+            eprintln!("{:?}", err);
+            bail!("Failed to fetch url {}, response status: ", url)
+        }
+    }
 }
 
-pub async fn post_json<P: Serialize>(url: &str, payload: &P) -> Result<Response, reqwest::Error> {
-    CLIENT
+pub async fn post_json<P: Serialize>(url: &str, payload: &P) -> Result<Response> {
+    let response = CLIENT
         .post(url)
         .headers(HEADERS.clone())
         .json(payload)
         .send()
-        .await
+        .await;
+    match response {
+        Ok(response) if response.status().is_success() => Ok(response),
+        Ok(err_response) => {
+            eprintln!("{:?}", err_response);
+            bail!(
+                "Failed to call {}, response status: {}",
+                url,
+                err_response.status()
+            );
+        }
+        Err(err) => {
+            eprintln!("{:?}", err);
+            bail!("Failed to call {}", url);
+        }
+    }
 }
 
 #[derive(Serialize)]
