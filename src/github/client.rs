@@ -117,8 +117,8 @@ pub async fn create_column_card(column_id: u64, issue_id: u64) -> Result<Respons
         )
         .as_str(),
         &HashMap::from([
-            ("content_type", "Issue"),
-            ("content_id", &issue_id.to_string()),
+            ("content_type", Value::String("Issue".to_string())),
+            ("content_id", Value::Number(issue_id.into())),
         ]),
     )
     .await
