@@ -113,6 +113,7 @@ const NEW_PACKAGE_COMMENT: &str = r#"Hello! Pull requests are always very welcom
 lazy_static! {
     static ref MASON_PROJECT_ID: u64 = 14574269;
     static ref MASON_PROJECT_COLUMN_PRIO_ID: u64 = 19009769;
+    static ref MASON_PROJECT_COLUMN_TRIAGE_ID: u64 = 19009768;
     static ref MASON_PROJECT_COLUMN_BACKLOG_ID: u64 = 19009770;
     static ref MASON_PROJECT_COLUMN_SUPPORT_ID: u64 = 19114644;
     static ref MASON_PROJECT_COLUMN_CLOSED_ID: u64 = 19009772;
@@ -136,9 +137,8 @@ async fn issue_event(event: GitHubIssues) -> Status {
                     )
                 );
             } else {
-                let _ =
-                    client::create_column_card(*MASON_PROJECT_COLUMN_BACKLOG_ID, event.issue.id)
-                        .await;
+                let _ = client::create_column_card(*MASON_PROJECT_COLUMN_TRIAGE_ID, event.issue.id)
+                    .await;
             }
             Status::NoContent
         }
