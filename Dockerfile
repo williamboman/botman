@@ -2,7 +2,7 @@ FROM rust:1-bullseye AS botman-builder
 
 WORKDIR /app
 COPY . .
-RUN rustup toolchain install nightly-aarch64-unknown-linux-gnu
+RUN rustup toolchain install nightly-x86_64-unknown-linux-gnu
 RUN cargo +nightly build -r
 
 FROM debian:bullseye
