@@ -122,7 +122,7 @@ async fn issue_event(event: GitHubIssues) -> Status {
     match event.action {
         GitHubIssuesAction::Opened => {
             if event.issue.has_label("new-package-request") {
-                let _ = rocket::tokio::try_join!(
+                tokio::join!(
                     client::create_issue_comment(
                         &event.repository,
                         &event.issue,
