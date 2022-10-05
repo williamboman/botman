@@ -90,6 +90,52 @@ pub struct GitHubRef {
 pub struct GitHubPullRequest {
     pub head: GitHubRef,
     pub base: GitHubRef,
+    pub merged: bool,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum GitHubPullRequestEventAction {
+    Assigned,
+    AutoMergeDisabled,
+    AutoMergeEnabled,
+    /// If the action is closed and the merged key is false, the pull request was closed with
+    /// unmerged commits. If the action is closed and the merged key is true, the pull request was
+    /// merged.
+    Closed,
+    ConvertedToDraft,
+    /// Triggered when a pull request is removed from a merge queue
+    Dequeued,
+    Edited,
+    /// Triggered when a pull request is added to a merge queue
+    Enqueued,
+    Labeled,
+    Locked,
+    Opened,
+    ReadyForReview,
+    Reopened,
+    ReviewRequestRemoved,
+    ReviewRequested,
+    /// Triggered when a pull request's head branch is updated. For example, when the head branch
+    /// is updated from the base branch, when new commits are pushed to the head branch, or when
+    /// the base branch is changed.
+    Synchronize,
+    Unassigned,
+    Unlabeled,
+    Unlocked,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct GitHubPullRequestEvent {
+    pub action: GitHubPullRequestEventAction,
+    pub pull_request: GitHubPullRequest,
+}
+
+#[derive(Debug)]
+pub enum GitHubWebhook {
+    IssueComment(GitHubIssueCommentEvent),
+    Issues(GitHubIssuesEvent),
+    PullRequest(GitHubPullRequestEvent),
 }
 
 #[derive(Deserialize, Debug)]
@@ -154,15 +200,15 @@ impl Serialize for GitHubReaction {
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
-pub enum GitHubIssueCommentAction {
+pub enum GitHubIssueCommentEventAction {
     Created,
     Edited,
     Deleted,
 }
 
 #[derive(Deserialize, Debug)]
-pub struct GitHubIssueComment {
-    pub action: GitHubIssueCommentAction,
+pub struct GitHubIssueCommentEvent {
+    pub action: GitHubIssueCommentEventAction,
     pub issue: GitHubIssue,
     pub comment: GitHubComment,
     pub repository: GitHubRepo,
@@ -170,7 +216,7 @@ pub struct GitHubIssueComment {
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
-pub enum GitHubIssuesAction {
+pub enum GitHubIssuesEventAction {
     Opened,
     Edited,
     Deleted,
@@ -190,8 +236,8 @@ pub enum GitHubIssuesAction {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct GitHubIssues {
-    pub action: GitHubIssuesAction,
+pub struct GitHubIssuesEvent {
+    pub action: GitHubIssuesEventAction,
     pub issue: GitHubIssue,
     pub repository: GitHubRepo,
     pub sender: GitHubUser,

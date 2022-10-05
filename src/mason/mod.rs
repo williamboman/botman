@@ -4,10 +4,9 @@ use crate::github::{
     action_parser::*,
     client,
     data::{
-        GitHubIssueComment, GitHubIssueCommentAction, GitHubIssues, GitHubIssuesAction,
-        GitHubReaction,
+        GitHubIssueCommentEvent, GitHubIssueCommentEventAction, GitHubIssuesEvent,
+        GitHubIssuesEventAction, GitHubReaction, GitHubWebhook,
     },
-    webhook::guard::GitHubWebhook,
 };
 use anyhow::{anyhow, bail, Result};
 use rocket::http::Status;
@@ -77,11 +76,11 @@ impl AuthorizedAction<MasonCommand> {
     }
 }
 
-async fn issue_comment(event: GitHubIssueComment) -> Status {
+async fn issue_comment(event: GitHubIssueCommentEvent) -> Status {
     let repo = event.repository.clone();
     let comment = event.comment.clone();
     match event.action {
-        GitHubIssueCommentAction::Created => match event.try_into() {
+        GitHubIssueCommentEventAction::Created => match event.try_into() {
             Ok(action @ AuthorizedAction::<MasonCommand> { .. }) => match action.execute().await {
                 Ok(result) => {
                     println!("{}", result);
@@ -104,7 +103,9 @@ async fn issue_comment(event: GitHubIssueComment) -> Status {
                 Status::NoContent
             }
         },
-        GitHubIssueCommentAction::Edited | GitHubIssueCommentAction::Deleted => Status::NoContent,
+        GitHubIssueCommentEventAction::Edited | GitHubIssueCommentEventAction::Deleted => {
+            Status::NoContent
+        }
     }
 }
 
@@ -119,11 +120,11 @@ lazy_static! {
     static ref MASON_PROJECT_COLUMN_CLOSED_ID: u64 = 19009772;
 }
 
-async fn issue_event(event: GitHubIssues) -> Status {
+async fn issue_event(event: GitHubIssuesEvent) -> Status {
     match event.action {
-        GitHubIssuesAction::Opened => {
+        GitHubIssuesEventAction::Opened => {
             if event.issue.has_label("new-package-request") {
-                tokio::join!(
+                let _ = tokio::join!(
                     client::create_issue_comment(
                         &event.repository,
                         &event.issue,
@@ -152,5 +153,6 @@ pub async fn index(webhook: GitHubWebhook) -> Status {
     match webhook {
         GitHubWebhook::IssueComment(event) => issue_comment(event).await,
         GitHubWebhook::Issues(event) => issue_event(event).await,
+        GitHubWebhook::PullRequest(_) => todo!(),
     }
 }

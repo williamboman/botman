@@ -215,13 +215,13 @@ impl AuthorizedActionContext for GitHubPullRequestReview {
     }
 }
 
-impl<Command> TryFrom<&GitHubIssueComment> for Action<Command>
+impl<Command> TryFrom<&GitHubIssueCommentEvent> for Action<Command>
 where
     Command: TryFrom<RawCommand, Error = anyhow::Error>,
 {
     type Error = anyhow::Error;
 
-    fn try_from(value: &GitHubIssueComment) -> Result<Self, Self::Error> {
+    fn try_from(value: &GitHubIssueCommentEvent) -> Result<Self, Self::Error> {
         value
             .comment
             .body
@@ -231,13 +231,13 @@ where
     }
 }
 
-impl<Command> TryFrom<GitHubIssueComment> for AuthorizedAction<Command>
+impl<Command> TryFrom<GitHubIssueCommentEvent> for AuthorizedAction<Command>
 where
     Command: TryFrom<RawCommand, Error = anyhow::Error>,
 {
     type Error = anyhow::Error;
 
-    fn try_from(value: GitHubIssueComment) -> Result<Self, Self::Error> {
+    fn try_from(value: GitHubIssueCommentEvent) -> Result<Self, Self::Error> {
         let authorized_by = (&value.comment.user).try_into()?;
         Ok(Self {
             action: (&value).try_into()?,
@@ -248,7 +248,7 @@ where
 }
 
 #[async_trait]
-impl AuthorizedActionContext for GitHubIssueComment {
+impl AuthorizedActionContext for GitHubIssueCommentEvent {
     async fn get_pull_request(&self) -> Result<Option<GitHubPullRequest>> {
         if let Some(pr) = self.issue.pull_request.as_ref() {
             Ok(client::get(pr.url.as_str()).await?.json().await?)

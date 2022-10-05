@@ -10,7 +10,9 @@ use sha2::Sha256;
 use std::str::FromStr;
 
 use crate::{
-    github::data::{GitHubIssueComment, GitHubIssues},
+    github::data::{
+        GitHubIssueCommentEvent, GitHubIssuesEvent, GitHubPullRequestEvent, GitHubWebhook,
+    },
     GITHUB_WEBHOOK_SECRET,
 };
 
@@ -33,12 +35,6 @@ impl FromStr for GitHubSignature {
             bail!("Bad GitHubSignature format.")
         }
     }
-}
-
-#[derive(Debug)]
-pub enum GitHubWebhook {
-    IssueComment(GitHubIssueComment),
-    Issues(GitHubIssues),
 }
 
 #[async_trait]
@@ -97,9 +93,12 @@ fn parse_and_map_json<'r>(
 ) -> Result<GitHubWebhook, (Status, anyhow::Error)> {
     match request.headers().get_one("X-GitHub-Event") {
         Some("issue_comment") => {
-            parse::<GitHubIssueComment>(payload).map(GitHubWebhook::IssueComment)
+            parse::<GitHubIssueCommentEvent>(payload).map(GitHubWebhook::IssueComment)
         }
-        Some("issues") => parse::<GitHubIssues>(payload).map(GitHubWebhook::Issues),
+        Some("issues") => parse::<GitHubIssuesEvent>(payload).map(GitHubWebhook::Issues),
+        Some("pull_request") => {
+            parse::<GitHubPullRequestEvent>(payload).map(GitHubWebhook::PullRequest)
+        }
         Some(event) => Err((
             Status::NotImplemented,
             anyhow!("Event {} is not supported.", event),
