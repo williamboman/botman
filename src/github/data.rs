@@ -88,9 +88,12 @@ pub struct GitHubRef {
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct GitHubPullRequest {
+    pub id: u64,
+    pub number: u64,
     pub head: GitHubRef,
     pub base: GitHubRef,
     pub merged: bool,
+    pub user: GitHubUser,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -128,6 +131,7 @@ pub enum GitHubPullRequestEventAction {
 #[derive(Deserialize, Debug, Clone)]
 pub struct GitHubPullRequestEvent {
     pub action: GitHubPullRequestEventAction,
+    pub repository: GitHubRepo,
     pub pull_request: GitHubPullRequest,
 }
 
