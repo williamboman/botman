@@ -6,12 +6,14 @@ use rocket::{
     Data, Request,
 };
 use serde::Deserialize;
+
 use sha2::Sha256;
 use std::str::FromStr;
 
 use crate::{
     github::data::{
-        GitHubIssueCommentEvent, GitHubIssuesEvent, GitHubPullRequestEvent, GitHubWebhook,
+        GitHubCheckRunEvent, GitHubIssueCommentEvent, GitHubIssuesEvent, GitHubPullRequestEvent,
+        GitHubWebhook,
     },
     GITHUB_WEBHOOK_SECRET,
 };
@@ -99,6 +101,7 @@ fn parse_and_map_json<'r>(
         Some("pull_request") => {
             parse::<GitHubPullRequestEvent>(payload).map(GitHubWebhook::PullRequest)
         }
+        Some("check_run") => parse::<GitHubCheckRunEvent>(payload).map(GitHubWebhook::CheckRun),
         Some(event) => Err((
             Status::NotImplemented,
             anyhow!("Event {} is not supported.", event),

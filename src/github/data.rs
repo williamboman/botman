@@ -10,6 +10,13 @@ pub struct GitHubUser {
 }
 
 #[derive(Deserialize, Debug, Clone)]
+pub struct GitHubTeam {
+    pub id: u64,
+    pub name: String,
+    pub slug: String,
+}
+
+#[derive(Deserialize, Debug, Clone)]
 pub struct GitHubComment {
     pub id: u64,
     pub node_id: String,
@@ -94,6 +101,7 @@ pub struct GitHubPullRequest {
     pub base: GitHubRef,
     pub merged: bool,
     pub user: GitHubUser,
+    pub requested_teams: Vec<GitHubTeam>
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -135,11 +143,85 @@ pub struct GitHubPullRequestEvent {
     pub pull_request: GitHubPullRequest,
 }
 
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum GitHubCheckRunEventAction {
+    Completed,
+    Created,
+    RequestedAction,
+    Rerequested,
+}
+
+#[derive(PartialEq, Deserialize, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum GitHubCheckRunConclusion {
+    ActionRequired,
+    Cancelled,
+    Failure,
+    Neutral,
+    Pending,
+    Skipped,
+    Stale,
+    StartupFailure,
+    Success,
+    TimedOut,
+    Waiting,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum GitHubCheckRunStatus {
+    Completed,
+    InProgress,
+    Pending,
+    Queued,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct GitHubCheckRun {
+    pub id: u64,
+    pub conclusion: Option<GitHubCheckRunConclusion>,
+    pub pull_requests: Vec<GitHubCheckRunPullRequest>,
+    pub started_at: String,
+    pub status: GitHubCheckRunStatus,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct GitHubCheckRunRepo {
+    pub id: u64,
+    pub name: String,
+    pub url: String,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct GitHubCheckRunRef {
+    pub r#ref: String,
+    pub repo: GitHubCheckRunRepo,
+    pub sha: String,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct GitHubCheckRunPullRequest {
+    pub id: u64,
+    pub number: u64,
+    pub url: String,
+    pub base: GitHubCheckRunRef,
+    pub head: GitHubCheckRunRef,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct GitHubCheckRunEvent {
+    pub action: GitHubCheckRunEventAction,
+    pub repository: GitHubRepo,
+    pub check_run: GitHubCheckRun,
+}
+
 #[derive(Debug)]
 pub enum GitHubWebhook {
     IssueComment(GitHubIssueCommentEvent),
     Issues(GitHubIssuesEvent),
     PullRequest(GitHubPullRequestEvent),
+    CheckRun(GitHubCheckRunEvent),
 }
 
 #[derive(Deserialize, Debug)]
@@ -247,7 +329,7 @@ pub struct GitHubIssuesEvent {
     pub sender: GitHubUser,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(PartialEq, Deserialize, Debug)]
 pub struct GitHubIssuePullRequest {
     pub url: String,
     pub merged_at: Option<String>,

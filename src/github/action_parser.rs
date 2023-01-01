@@ -251,7 +251,7 @@ where
 impl AuthorizedActionContext for GitHubIssueCommentEvent {
     async fn get_pull_request(&self) -> Result<Option<GitHubPullRequest>> {
         if let Some(pr) = self.issue.pull_request.as_ref() {
-            Ok(client::get(pr.url.as_str()).await?.json().await?)
+            Ok(client::get(&pr.url).await?.json().await?)
         } else {
             Ok(None)
         }

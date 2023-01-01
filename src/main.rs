@@ -11,6 +11,7 @@ extern crate lazy_static;
 
 mod github;
 mod mason;
+mod mason_registry;
 
 // TODO: verify these exist at startup
 lazy_static! {
@@ -23,5 +24,5 @@ lazy_static! {
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build().mount("/api", routes![mason::index])
+    rocket::build().mount("/api", routes![mason::index, mason_registry::index])
 }

@@ -129,7 +129,7 @@ async fn issue_event(event: GitHubIssuesEvent) -> Status {
                 let _ = tokio::join!(
                     client::create_issue_comment(
                         &event.repository,
-                        &event.issue,
+                        event.issue.number,
                         NEW_PACKAGE_COMMENT,
                     ),
                     client::create_column_card(*MASON_PROJECT_COLUMN_PRIO_ID, event.issue.id),
@@ -151,15 +151,17 @@ async fn issue_event(event: GitHubIssuesEvent) -> Status {
 
 async fn hacktoberfest_label(event: &GitHubPullRequestEvent) {
     let now = Utc::now().date_naive();
-    let start = NaiveDate::from_ymd(now.year(), 9, 25);
-    let end = NaiveDate::from_ymd(now.year(), 11, 5);
-    if (start <= now) && (now <= end) {
-        let _ = client::add_labels_to_issue(
-            &event.repository,
-            vec!["hacktoberfest-accepted"],
-            event.pull_request.number,
-        )
-        .await;
+    let start = NaiveDate::from_ymd_opt(now.year(), 9, 25);
+    let end = NaiveDate::from_ymd_opt(now.year(), 11, 5);
+    if let (Some(start), Some(end)) = (start, end) {
+        if (start <= now) && (now <= end) {
+            let _ = client::add_labels_to_issue(
+                &event.repository,
+                vec!["hacktoberfest-accepted"],
+                event.pull_request.number,
+            )
+            .await;
+        }
     }
 }
 
@@ -182,5 +184,6 @@ pub async fn index(webhook: GitHubWebhook) -> Status {
         GitHubWebhook::IssueComment(event) => issue_comment(event).await,
         GitHubWebhook::Issues(event) => issue_event(event).await,
         GitHubWebhook::PullRequest(event) => pull_request(event).await,
+        _ => Status::NotImplemented,
     }
 }

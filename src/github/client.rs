@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{CLIENT, GITHUB_PAT};
 
-use super::data::{GitHubComment, GitHubIssue, GitHubReaction, GitHubRepo};
+use super::data::{GitHubComment, GitHubReaction, GitHubRepo};
 use anyhow::{anyhow, bail, Result};
 use reqwest::{
     header::{HeaderMap, ACCEPT, AUTHORIZATION, USER_AGENT},
@@ -38,24 +38,24 @@ const COMMENT_FOOTER: &str = r#"
 
 pub async fn create_issue_comment(
     repo: &GitHubRepo,
-    issue: &GitHubIssue,
+    issue_number: u64,
     comment: &str,
 ) -> Result<Response> {
     let merged_comment = comment.to_string() + COMMENT_FOOTER;
     println!(
-        "Creating issue comment {:?} {:?} {:?}",
-        merged_comment, issue, repo
+        "Creating issue comment {:?} {} {:?}",
+        merged_comment, issue_number, repo
     );
     post_json(
-        format!("{}/issues/{}/comments", repo.as_api_url(), issue.number).as_str(),
+        format!("{}/issues/{}/comments", repo.as_api_url(), issue_number).as_str(),
         &HashMap::from([("body", &merged_comment)]),
     )
     .await
     .inspect_err(|e| {
         eprintln!("{}", e);
         eprintln!(
-            "Failed to create issue comment {:?} {:?} {:?}",
-            merged_comment, issue, repo
+            "Failed to create issue comment {:?} {} {:?}",
+            merged_comment, issue_number, repo
         )
     })
 }
@@ -125,6 +125,40 @@ pub async fn create_column_card(column_id: u64, issue_id: u64) -> Result<Respons
     .inspect_err(|e| {
         eprintln!("{}", e);
         eprintln!("Failed to create column card {} {}", column_id, issue_id);
+    })
+}
+
+#[derive(Serialize, Debug)]
+pub struct RequestReviewersDto {
+    pub reviewers: Vec<String>,
+    pub team_reviewers: Vec<String>,
+}
+
+pub async fn request_review(
+    repo: &GitHubRepo,
+    pull_request_number: u64,
+    reviewers: &RequestReviewersDto,
+) -> Result<Response> {
+    println!(
+        "Requesting reviewers {:?} {} {:?}",
+        repo, pull_request_number, reviewers
+    );
+    post_json(
+        format!(
+            "{}/pulls/{}/requested_reviewers",
+            repo.as_api_url(),
+            pull_request_number
+        )
+        .as_str(),
+        reviewers,
+    )
+    .await
+    .inspect_err(|e| {
+        eprintln!("{}", e);
+        eprintln!(
+            "Failed to request reviewers {:?} {} {:?}",
+            repo, pull_request_number, reviewers
+        );
     })
 }
 
