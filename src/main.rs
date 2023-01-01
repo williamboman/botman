@@ -10,6 +10,7 @@ extern crate rocket;
 extern crate lazy_static;
 
 mod github;
+mod hacktober;
 mod mason;
 mod mason_registry;
 

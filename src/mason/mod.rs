@@ -1,16 +1,17 @@
 use std::fmt::Display;
 
-use crate::github::{
-    action_parser::*,
-    client,
-    data::{
-        GitHubIssueCommentEvent, GitHubIssueCommentEventAction, GitHubIssuesEvent,
-        GitHubIssuesEventAction, GitHubPullRequestEvent, GitHubPullRequestEventAction,
-        GitHubReaction, GitHubWebhook,
+use crate::{
+    github::{
+        action_parser::*,
+        client,
+        data::{
+            GitHubIssueCommentEvent, GitHubIssueCommentEventAction, GitHubIssuesEvent,
+            GitHubIssuesEventAction, GitHubPullRequestEvent, GitHubReaction, GitHubWebhook,
+        },
     },
+    hacktober::hacktoberfest_label,
 };
 use anyhow::{anyhow, bail, Result};
-use chrono::{Datelike, NaiveDate, Utc};
 use rocket::http::Status;
 
 mod apply;
@@ -149,32 +150,9 @@ async fn issue_event(event: GitHubIssuesEvent) -> Status {
     }
 }
 
-async fn hacktoberfest_label(event: &GitHubPullRequestEvent) {
-    let now = Utc::now().date_naive();
-    let start = NaiveDate::from_ymd_opt(now.year(), 9, 25);
-    let end = NaiveDate::from_ymd_opt(now.year(), 11, 5);
-    if let (Some(start), Some(end)) = (start, end) {
-        if (start <= now) && (now <= end) {
-            let _ = client::add_labels_to_issue(
-                &event.repository,
-                vec!["hacktoberfest-accepted"],
-                event.pull_request.number,
-            )
-            .await;
-        }
-    }
-}
-
 async fn pull_request(event: GitHubPullRequestEvent) -> Status {
-    match event.action {
-        GitHubPullRequestEventAction::Closed if event.pull_request.merged => {
-            if event.pull_request.user.login != "williambotman" {
-                hacktoberfest_label(&event).await;
-            }
-            Status::NoContent
-        }
-        _ => Status::NoContent,
-    }
+    hacktoberfest_label(&event).await;
+    Status::NoContent
 }
 
 #[post("/v1/mason/github-webhook", format = "json", data = "<webhook>")]
