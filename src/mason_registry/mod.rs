@@ -25,23 +25,22 @@ impl NotifyReason {
     }
 }
 
-async fn notify_triage(
-    repo: &GitHubRepo,
-    issue_number: u64,
-    request_review: bool,
-    reason: NotifyReason,
-) {
-    if request_review {
-        let _ = client::request_review(
-            repo,
-            issue_number,
-            &RequestReviewersDto {
-                reviewers: vec![],
-                team_reviewers: vec!["triage".to_string()],
-            },
-        )
-        .await;
+async fn notify_triage(repo: &GitHubRepo, issue_number: u64, reason: NotifyReason) {
+    match reason {
+        NotifyReason::RenovateFailedCI | NotifyReason::NewPullRequest => {
+            let _ = client::request_review(
+                repo,
+                issue_number,
+                &RequestReviewersDto {
+                    reviewers: vec![],
+                    team_reviewers: vec!["triage".to_string()],
+                },
+            )
+            .await;
+        }
+        NotifyReason::NewIssue => {}
     }
+
     if let Ok(comment) = client::create_issue_comment(
         repo,
         issue_number,
@@ -61,7 +60,6 @@ async fn issue_event(event: GitHubIssuesEvent) -> Result<Status> {
             notify_triage(
                 &event.repository,
                 event.issue.number,
-                false,
                 NotifyReason::NewIssue,
             )
             .await;
@@ -83,13 +81,8 @@ async fn check_run_event(event: GitHubCheckRunEvent) -> Result<Status> {
                 let pr: GitHubPullRequest = client::get(&check_run_pr.url).await?.json().await?;
 
                 if pr.user.login == "renovate[bot]" && pr.requested_teams.len() == 0 {
-                    notify_triage(
-                        &event.repository,
-                        pr.number,
-                        true,
-                        NotifyReason::RenovateFailedCI,
-                    )
-                    .await;
+                    notify_triage(&event.repository, pr.number, NotifyReason::RenovateFailedCI)
+                        .await;
                 }
             }
         }
@@ -108,7 +101,6 @@ async fn pull_request(event: GitHubPullRequestEvent) -> Result<Status> {
             notify_triage(
                 &event.repository,
                 event.pull_request.number,
-                true,
                 NotifyReason::NewPullRequest,
             )
             .await
