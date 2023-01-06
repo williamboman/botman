@@ -12,7 +12,25 @@ use crate::{
 use anyhow::Result;
 use rocket::http::Status;
 
-async fn notify_triage(repo: &GitHubRepo, issue_number: u64, request_review: bool) {
+#[derive(Debug)]
+enum NotifyReason {
+    RenovateFailedCI,
+    NewIssue,
+    NewPullRequest,
+}
+
+impl NotifyReason {
+    fn explain(&self) -> String {
+        format!("`notify({:?})`", self)
+    }
+}
+
+async fn notify_triage(
+    repo: &GitHubRepo,
+    issue_number: u64,
+    request_review: bool,
+    reason: NotifyReason,
+) {
     if request_review {
         let _ = client::request_review(
             repo,
@@ -24,13 +42,29 @@ async fn notify_triage(repo: &GitHubRepo, issue_number: u64, request_review: boo
         )
         .await;
     }
-    let _ = client::create_issue_comment(repo, issue_number, "@mason-org/triage").await;
+    if let Ok(comment) = client::create_issue_comment(
+        repo,
+        issue_number,
+        &format!(
+            "@mason-org/triage {}\n<sup>This comment ensures a notification is delivered to maintainers.</sup>",
+            reason.explain()
+        ),
+    )
+    .await {
+        let _ = client::minimize_comment(&comment);
+    }
 }
 
 async fn issue_event(event: GitHubIssuesEvent) -> Result<Status> {
     match event.action {
         GitHubIssuesEventAction::Opened if event.issue.pull_request == None => {
-            notify_triage(&event.repository, event.issue.number, false).await;
+            notify_triage(
+                &event.repository,
+                event.issue.number,
+                false,
+                NotifyReason::NewIssue,
+            )
+            .await;
         }
         _ => {}
     }
@@ -49,7 +83,13 @@ async fn check_run_event(event: GitHubCheckRunEvent) -> Result<Status> {
                 let pr: GitHubPullRequest = client::get(&check_run_pr.url).await?.json().await?;
 
                 if pr.user.login == "renovate[bot]" && pr.requested_teams.len() == 0 {
-                    notify_triage(&event.repository, pr.number, true).await;
+                    notify_triage(
+                        &event.repository,
+                        pr.number,
+                        true,
+                        NotifyReason::RenovateFailedCI,
+                    )
+                    .await;
                 }
             }
         }
@@ -65,7 +105,13 @@ async fn pull_request(event: GitHubPullRequestEvent) -> Result<Status> {
         GitHubPullRequestEventAction::Opened
             if event.pull_request.user.login != "renovate[bot]" =>
         {
-            notify_triage(&event.repository, event.pull_request.number, true).await
+            notify_triage(
+                &event.repository,
+                event.pull_request.number,
+                true,
+                NotifyReason::NewPullRequest,
+            )
+            .await
         }
         _ => {}
     }

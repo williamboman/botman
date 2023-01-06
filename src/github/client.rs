@@ -40,13 +40,13 @@ pub async fn create_issue_comment(
     repo: &GitHubRepo,
     issue_number: u64,
     comment: &str,
-) -> Result<Response> {
+) -> Result<GitHubComment> {
     let merged_comment = comment.to_string() + COMMENT_FOOTER;
     println!(
         "Creating issue comment {:?} {} {:?}",
         merged_comment, issue_number, repo
     );
-    post_json(
+    Ok(post_json(
         format!("{}/issues/{}/comments", repo.as_api_url(), issue_number).as_str(),
         &HashMap::from([("body", &merged_comment)]),
     )
@@ -57,7 +57,9 @@ pub async fn create_issue_comment(
             "Failed to create issue comment {:?} {} {:?}",
             merged_comment, issue_number, repo
         )
-    })
+    })?
+    .json()
+    .await?)
 }
 
 pub async fn create_issue_comment_reaction(
