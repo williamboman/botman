@@ -46,7 +46,7 @@ pub async fn create_issue_comment(
         "Creating issue comment {:?} {} {:?}",
         merged_comment, issue_number, repo
     );
-    Ok(post_json(
+    post_json(
         format!("{}/issues/{}/comments", repo.as_api_url(), issue_number).as_str(),
         &HashMap::from([("body", &merged_comment)]),
     )
@@ -57,16 +57,14 @@ pub async fn create_issue_comment(
             "Failed to create issue comment {:?} {} {:?}",
             merged_comment, issue_number, repo
         )
-    })?
-    .json()
-    .await?)
+    })
 }
 
 pub async fn create_issue_comment_reaction(
     repo: &GitHubRepo,
     comment: &GitHubComment,
     reaction: &GitHubReaction,
-) -> Result<Response> {
+) -> Result<Value> {
     println!(
         "Creating issue comment reaction {:?} {:?} {:?}",
         reaction, comment, repo
@@ -94,7 +92,7 @@ pub async fn add_labels_to_issue(
     repo: &GitHubRepo,
     labels: Vec<&str>,
     issue_number: u64,
-) -> Result<Response> {
+) -> Result<Value> {
     println!("Adding labels to issue {:?} {}", labels, issue_number);
     post_json(
         format!("{}/issues/{}/labels", repo.as_api_url(), issue_number).as_str(),
@@ -110,7 +108,7 @@ pub async fn add_labels_to_issue(
     })
 }
 
-pub async fn create_column_card(column_id: u64, issue_id: u64) -> Result<Response> {
+pub async fn create_column_card(column_id: u64, issue_id: u64) -> Result<Value> {
     println!("Creating column card {} {}", column_id, issue_id);
     post_json(
         format!(
@@ -140,7 +138,7 @@ pub async fn request_review(
     repo: &GitHubRepo,
     pull_request_number: u64,
     reviewers: &RequestReviewersDto,
-) -> Result<Response> {
+) -> Result<Value> {
     println!(
         "Requesting reviewers {:?} {} {:?}",
         repo, pull_request_number, reviewers
@@ -186,31 +184,31 @@ mutation unminimizeComment($input: UnminimizeCommentInput!) {
 
 #[derive(Deserialize)]
 #[allow(non_camel_case_types, non_snake_case)]
-struct MinimizedComment {
+pub struct MinimizedComment {
     pub isMinimized: bool,
 }
 
 #[derive(Deserialize)]
 #[allow(non_camel_case_types, non_snake_case)]
-struct MinimizeComment {
+pub struct MinimizeComment {
     pub minimizedComment: MinimizedComment,
 }
 
 #[derive(Deserialize)]
 #[allow(non_camel_case_types, non_snake_case)]
-struct MinimizeCommentResponse {
+pub struct MinimizeCommentResponse {
     pub minimizeComment: MinimizeComment,
 }
 
 #[derive(Deserialize)]
 #[allow(non_camel_case_types, non_snake_case)]
-struct UnminimizeComment {
+pub struct UnminimizeComment {
     pub unminimizedComment: MinimizedComment,
 }
 
 #[derive(Deserialize)]
 #[allow(non_camel_case_types, non_snake_case)]
-struct UnminimizeCommentResponse {
+pub struct UnminimizeCommentResponse {
     pub unminimizeComment: UnminimizeComment,
 }
 
@@ -240,7 +238,7 @@ struct UnminimizeCommentInput {
     subjectId: String,
 }
 
-pub async fn minimize_comment(comment: &GitHubComment) -> Result<()> {
+pub async fn minimize_comment(comment: &GitHubComment) -> Result<MinimizeCommentResponse> {
     println!("Minimizing comment {:?}", comment);
     let mut variables = Map::new();
     variables.insert(
@@ -251,21 +249,21 @@ pub async fn minimize_comment(comment: &GitHubComment) -> Result<()> {
             subjectId: comment.node_id.to_owned(),
         }),
     );
+
     let data = graphql::<MinimizeCommentResponse>(&GraphqlQuery {
         query: MINIMIZE_COMMENT_MUTATION.to_owned(),
         variables: Some(variables),
     })
-    .await?
-    .ok()?;
+    .await?;
 
     if data.minimizeComment.minimizedComment.isMinimized {
-        Ok(())
+        Ok(data)
     } else {
         bail!("Failed to minimize comment.")
     }
 }
 
-pub async fn unminimize_comment(comment: &GitHubComment) -> Result<()> {
+pub async fn unminimize_comment(comment: &GitHubComment) -> Result<UnminimizeCommentResponse> {
     println!("Unminimizing comment {:?}", comment);
     let mut variables = Map::new();
     variables.insert(
@@ -279,13 +277,16 @@ pub async fn unminimize_comment(comment: &GitHubComment) -> Result<()> {
         query: UNMINIMIZE_COMMENT_MUTATION.to_owned(),
         variables: Some(variables),
     })
-    .await?
-    .ok()?;
+    .await
+    .inspect_err(|e| {
+        eprintln!("{:?}", e);
+        eprintln!("Failed to unminimize comment {:?}", comment)
+    })?;
 
-    if !data.unminimizeComment.unminimizedComment.isMinimized {
-        Ok(())
+    if data.unminimizeComment.unminimizedComment.isMinimized {
+        Ok(data)
     } else {
-        bail!("Failed to unminimize comment.")
+        bail!("Failed to minimize comment")
     }
 }
 
@@ -308,15 +309,19 @@ pub async fn get(url: &str) -> Result<Response> {
     }
 }
 
-pub async fn post_json<P: Serialize>(url: &str, payload: &P) -> Result<Response> {
+pub async fn post_json<Payload: Serialize, Response: DeserializeOwned>(
+    url: &str,
+    payload: &Payload,
+) -> Result<Response> {
     let response = CLIENT
         .post(url)
         .headers(HEADERS.clone())
         .json(payload)
         .send()
         .await;
+
     match response {
-        Ok(response) if response.status().is_success() => Ok(response),
+        Ok(response) if response.status().is_success() => Ok(response.json().await?),
         Ok(err_response) => {
             eprintln!("{:?}", err_response);
             bail!(
@@ -338,14 +343,14 @@ pub struct GraphqlQuery {
     variables: Option<Map<String, Value>>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct GraphqlErrorLocation {
     pub line: u32,
     pub column: u32,
 }
 
-#[derive(Deserialize)]
-pub struct GraphqlError {
+#[derive(Deserialize, Debug)]
+pub struct GraphqlResponseError {
     pub message: String,
     pub locations: Vec<GraphqlErrorLocation>,
     pub path: Vec<String>,
@@ -354,11 +359,24 @@ pub struct GraphqlError {
 #[derive(Deserialize)]
 pub struct GraphqlResponseEnvelope<Data> {
     pub data: Option<Data>,
-    pub errors: Option<Vec<GraphqlError>>,
+    pub errors: Option<Vec<GraphqlResponseError>>,
+}
+
+#[derive(Debug)]
+pub enum GraphqlError {
+    Request(reqwest::Error),
+    Response(Vec<GraphqlResponseError>),
+    NoData,
+}
+
+impl From<reqwest::Error> for GraphqlError {
+    fn from(err: reqwest::Error) -> Self {
+        Self::Request(err)
+    }
 }
 
 impl<Data> GraphqlResponseEnvelope<Data> {
-    fn ok(self) -> Result<Data> {
+    fn ok(self) -> Result<Data, GraphqlError> {
         match self {
             Self {
                 data: Some(data),
@@ -372,25 +390,17 @@ impl<Data> GraphqlResponseEnvelope<Data> {
             | Self {
                 data: Some(_),
                 errors: Some(errors),
-            } => Err(anyhow!("Oh noes").context(format!(
-                "{:?}",
-                errors
-                    .iter()
-                    .map(|err| err.message.as_str())
-                    .collect::<Vec<&str>>()
-            ))),
+            } => Err(GraphqlError::Response(errors)),
 
             Self {
                 data: None,
                 errors: None,
-            } => Err(anyhow!("Missing both data and errors.")),
+            } => Err(GraphqlError::NoData),
         }
     }
 }
 
-pub async fn graphql<Data: DeserializeOwned>(
-    query: &GraphqlQuery,
-) -> Result<GraphqlResponseEnvelope<Data>> {
+pub async fn graphql<Data: DeserializeOwned>(query: &GraphqlQuery) -> Result<Data> {
     let response = CLIENT
         .post("https://api.github.com/graphql")
         .headers(HEADERS.clone())
@@ -398,5 +408,19 @@ pub async fn graphql<Data: DeserializeOwned>(
         .send()
         .await?;
 
-    Ok(response.json().await?)
+    response
+        .json::<GraphqlResponseEnvelope<Data>>()
+        .await?
+        .ok()
+        .map_err(|e| {
+            eprintln!("{:?}", e);
+            match e {
+                GraphqlError::Request(req_err) => anyhow!(
+                    "Failed to call GraphQL, response status: {:?}",
+                    req_err.status()
+                ),
+                GraphqlError::Response(_) => anyhow!("Received GraphQL errors."),
+                GraphqlError::NoData => anyhow!("Didn't receive GraphQL data or errors."),
+            }
+        })
 }
