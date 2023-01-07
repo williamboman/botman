@@ -21,7 +21,7 @@ enum NotifyReason {
 
 impl NotifyReason {
     fn explain(&self) -> String {
-        format!("`notify({:?})`", self)
+        format!("`notify(Reason::{:?})`", self)
     }
 }
 
@@ -45,12 +45,12 @@ async fn notify_triage(repo: &GitHubRepo, issue_number: u64, reason: NotifyReaso
         repo,
         issue_number,
         &format!(
-            "@mason-org/triage {}\n<sup>This comment ensures a notification is delivered to maintainers.</sup>",
+            "@mason-org/triage {}\n\n<sup>This comment ensures a notification is delivered to maintainers.</sup>",
             reason.explain()
         ),
     )
     .await {
-        let _ = client::minimize_comment(&comment);
+        let _ = client::minimize_comment(&comment).await;
     }
 }
 
