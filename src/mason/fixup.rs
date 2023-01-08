@@ -18,7 +18,7 @@ async fn stylua(workspace: &Workspace) -> Result<()> {
 
 async fn restore_generated_code(workspace: &Workspace) -> Result<()> {
     println!("Restoring generated code…");
-    workspace
+    let _ = workspace
         .spawn(
             "git",
             [
@@ -29,7 +29,10 @@ async fn restore_generated_code(workspace: &Workspace) -> Result<()> {
                 "lua/mason-schemas",
             ],
         )
-        .await
+        .await;
+
+    let _ = workspace.spawn("git", ["rm", ".luarc.json"]).await;
+    Ok(())
 }
 
 pub(super) async fn run(
