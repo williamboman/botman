@@ -15,7 +15,7 @@ RUN tar -xvzf /opt/nvim.tar.gz --strip-components=1 -C /opt/nvim
 ENV PATH="/opt/nvim/bin:${PATH}"
 
 # Install runtime deps
-RUN curl -fsSL -o /tmp/stylua.zip https://github.com/JohnnyMorganz/StyLua/releases/download/v0.15.0/stylua-linux.zip && \
+RUN curl -fsSL -o /tmp/stylua.zip https://github.com/JohnnyMorganz/StyLua/releases/download/v0.17.0/stylua-linux.zip && \
     unzip /tmp/stylua.zip -d /usr/local/bin && \
     rm -f /tmp/stylua.zip
 
