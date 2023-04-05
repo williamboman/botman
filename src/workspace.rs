@@ -90,6 +90,7 @@ impl Workspace {
         println!("Merging with {}", self.base.r#ref);
         self.spawn("git", ["fetch", "upstream", &self.base.r#ref])
             .await?;
+        let base_ref = &format!("upstream/{}", self.base.r#ref);
         self.spawn(
             "git",
             [
@@ -98,8 +99,8 @@ impl Workspace {
                 "-X",
                 "ours",
                 "-m",
-                "Merge upstream",
-                format!("upstream/{}", self.base.r#ref).as_str(),
+                &format!("merge {base_ref}"),
+                base_ref,
             ],
         )
         .await?;

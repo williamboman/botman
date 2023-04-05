@@ -12,10 +12,12 @@ use anyhow::{anyhow, bail, Result};
 use rocket::http::Status;
 
 mod fixup;
+mod merge_base;
 
 #[derive(Debug)]
 enum MasonCommand {
     Fixup,
+    MergeBase,
     Apply(GitApplyPatch),
 }
 
@@ -31,6 +33,7 @@ impl TryFrom<RawCommand> for MasonCommand {
                     .ok_or_else(|| anyhow!("apply is missing arguments."))?;
                 Ok(Self::Apply(arguments.try_into()?))
             }
+            "merge-base" => Ok(Self::MergeBase),
             s => bail!("{} is not a valid mason command.", s),
         }
     }
@@ -44,6 +47,7 @@ impl AuthorizedActionExecutor for MasonCommand {
         match &action.action.command {
             MasonCommand::Fixup => fixup::run(&action).await,
             MasonCommand::Apply(patch) => crate::github::action::apply::run(&action, patch).await,
+            MasonCommand::MergeBase => merge_base::run(&action).await,
         }
     }
 }
