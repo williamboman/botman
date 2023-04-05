@@ -1,6 +1,6 @@
 use crate::{
     github::{
-        action::parser::AuthorizedAction,
+        action::parser::{AuthorizedAction, RawCommand},
         client,
         data::{GitHubReaction, GitHubRef},
     },
@@ -12,19 +12,20 @@ use std::{ffi::OsStr, fmt::Display, process::Stdio};
 use tempfile::TempDir;
 use tokio::io::AsyncWriteExt;
 
-use super::MasonCommand;
-
 #[derive(Debug)]
-pub(super) struct Workspace {
+pub struct Workspace {
     pub workdir: TempDir,
     pub base: GitHubRef,
     pub head: GitHubRef,
 }
 
 impl Workspace {
-    pub async fn create(
-        action: &AuthorizedAction<MasonCommand>,
-    ) -> Result<Workspace, (Status, anyhow::Error)> {
+    pub async fn create<Command>(
+        action: &AuthorizedAction<Command>,
+    ) -> Result<Workspace, (Status, anyhow::Error)>
+    where
+        Command: TryFrom<RawCommand, Error = anyhow::Error>,
+    {
         let pr = action
             .context
             .get_pull_request()

@@ -1,5 +1,11 @@
+use std::fmt::Display;
+
 use crate::{
     github::{
+        action::{
+            common::GitApplyPatch,
+            parser::{AuthorizedAction, AuthorizedActionExecutor, RawCommand},
+        },
         client::{self, RequestReviewersDto},
         data::{
             GitHubCheckRunConclusion, GitHubCheckRunEvent, GitHubCheckRunStatus, GitHubIssuesEvent,
@@ -9,7 +15,7 @@ use crate::{
     },
     hacktober::hacktoberfest_label,
 };
-use anyhow::Result;
+use anyhow::{anyhow, bail, Result};
 use rocket::http::Status;
 
 #[derive(Debug)]
@@ -110,6 +116,40 @@ async fn pull_request(event: GitHubPullRequestEvent) -> Result<Status> {
     Ok(Status::NoContent)
 }
 
+#[derive(Debug)]
+enum MasonRegistryCommand {
+    Apply(GitApplyPatch),
+}
+
+impl TryFrom<RawCommand> for MasonRegistryCommand {
+    type Error = anyhow::Error;
+
+    fn try_from(value: RawCommand) -> Result<Self, Self::Error> {
+        match value.raw_command.as_str() {
+            "apply" => {
+                let arguments = value
+                    .raw_arguments
+                    .ok_or_else(|| anyhow!("apply is missing arguments."))?;
+                Ok(Self::Apply(arguments.try_into()?))
+            }
+            s => bail!("{} is not a valid mason-registry command.", s),
+        }
+    }
+}
+
+#[async_trait]
+impl AuthorizedActionExecutor for MasonRegistryCommand {
+    async fn execute(
+        action: AuthorizedAction<MasonRegistryCommand>,
+    ) -> Result<Box<dyn Display + Send>, (Status, anyhow::Error)> {
+        match &action.action.command {
+            MasonRegistryCommand::Apply(patch) => {
+                crate::github::action::apply::run(&action, patch).await
+            }
+        }
+    }
+}
+
 #[post(
     "/v1/mason-registry/github-webhook",
     format = "json",
@@ -118,15 +158,14 @@ async fn pull_request(event: GitHubPullRequestEvent) -> Result<Status> {
 pub async fn index(webhook: GitHubWebhook) -> Status {
     println!("{:?}", webhook);
     match webhook {
-        GitHubWebhook::Issues(event) => issue_event(event)
-            .await
-            .unwrap_or(Status::InternalServerError),
-        GitHubWebhook::CheckRun(event) => check_run_event(event)
-            .await
-            .unwrap_or(Status::InternalServerError),
-        GitHubWebhook::PullRequest(event) => pull_request(event)
-            .await
-            .unwrap_or(Status::InternalServerError),
-        _ => Status::NotImplemented,
+        GitHubWebhook::IssueComment(event) => {
+            Ok(crate::github::action::handle_issue_comment::<MasonRegistryCommand>(event).await)
+        }
+        GitHubWebhook::Issues(event) => issue_event(event).await,
+        GitHubWebhook::CheckRun(event) => check_run_event(event).await,
+        GitHubWebhook::PullRequest(event) => pull_request(event).await,
+        #[allow(unreachable_patterns)]
+        _ => Ok(Status::NotImplemented),
     }
+    .unwrap_or(Status::InternalServerError)
 }

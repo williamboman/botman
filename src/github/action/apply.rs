@@ -1,9 +1,9 @@
-use crate::github::action::parser::AuthorizedAction;
+use crate::{github::action::parser::AuthorizedAction, workspace::Workspace};
 use anyhow::Result;
 use rocket::http::Status;
 use std::fmt::Display;
 
-use super::{workspace::Workspace, GitApplyPatch, MasonCommand};
+use super::{common::GitApplyPatch, parser::RawCommand};
 
 async fn apply_patch(workspace: &Workspace, patch: &GitApplyPatch) -> Result<()> {
     println!("Applying patch\n{}", patch.patch);
@@ -17,10 +17,13 @@ async fn apply_patch(workspace: &Workspace, patch: &GitApplyPatch) -> Result<()>
     Ok(())
 }
 
-pub(super) async fn run(
-    action: &AuthorizedAction<MasonCommand>,
+pub async fn run<Command>(
+    action: &AuthorizedAction<Command>,
     patch: &GitApplyPatch,
-) -> Result<Box<dyn Display + Send>, (Status, anyhow::Error)> {
+) -> Result<Box<dyn Display + Send>, (Status, anyhow::Error)>
+where
+    Command: TryFrom<RawCommand, Error = anyhow::Error>,
+{
     let workspace = Workspace::create(action).await?;
 
     async {

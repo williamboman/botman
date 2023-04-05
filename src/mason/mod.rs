@@ -11,9 +11,7 @@ use crate::{
 use anyhow::{anyhow, bail, Result};
 use rocket::http::Status;
 
-mod apply;
 mod fixup;
-mod workspace;
 
 #[derive(Debug)]
 enum MasonCommand {
@@ -45,7 +43,7 @@ impl AuthorizedActionExecutor for MasonCommand {
     ) -> Result<Box<dyn Display + Send>, (Status, anyhow::Error)> {
         match &action.action.command {
             MasonCommand::Fixup => fixup::run(&action).await,
-            MasonCommand::Apply(patch) => apply::run(&action, &patch).await,
+            MasonCommand::Apply(patch) => crate::github::action::apply::run(&action, patch).await,
         }
     }
 }

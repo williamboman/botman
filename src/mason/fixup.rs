@@ -1,10 +1,10 @@
-use crate::github::action::parser::AuthorizedAction;
+use crate::{github::action::parser::AuthorizedAction, workspace::Workspace};
 use anyhow::Result;
 
 use rocket::http::Status;
 use std::fmt::Display;
 
-use super::{workspace::Workspace, MasonCommand};
+use super::MasonCommand;
 
 async fn make_generate(workspace: &Workspace) -> Result<()> {
     println!("Generating code…");

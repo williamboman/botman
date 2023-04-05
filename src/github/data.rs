@@ -101,7 +101,7 @@ pub struct GitHubPullRequest {
     pub base: GitHubRef,
     pub merged: bool,
     pub user: GitHubUser,
-    pub requested_teams: Vec<GitHubTeam>
+    pub requested_teams: Vec<GitHubTeam>,
 }
 
 #[derive(Deserialize, Debug, Clone)]

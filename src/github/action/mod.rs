@@ -5,6 +5,7 @@ use self::parser::{AuthorizedAction, AuthorizedActionExecutor, RawCommand};
 use super::data::{GitHubIssueCommentEvent, GitHubIssueCommentEventAction};
 use rocket::http::Status;
 
+pub mod apply;
 pub mod common;
 pub mod parser;
 

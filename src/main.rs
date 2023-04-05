@@ -13,6 +13,7 @@ mod github;
 mod hacktober;
 mod mason;
 mod mason_registry;
+mod workspace;
 
 // TODO: verify these exist at startup
 lazy_static! {
