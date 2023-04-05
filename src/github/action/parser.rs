@@ -1,5 +1,9 @@
 use anyhow::{anyhow, bail, Result};
-use std::{fmt::Debug, str::FromStr};
+use rocket::http::Status;
+use std::{
+    fmt::{Debug, Display},
+    str::FromStr,
+};
 
 use crate::github::{client, data::*};
 
@@ -141,6 +145,13 @@ where
             .ok_or_else(|| anyhow!("Body is empty."))?
             .parse()
     }
+}
+
+#[async_trait]
+pub trait AuthorizedActionExecutor: TryFrom<RawCommand, Error = anyhow::Error> {
+    async fn execute(
+        action: AuthorizedAction<Self>,
+    ) -> Result<Box<dyn Display + Send>, (Status, anyhow::Error)>;
 }
 
 #[derive(Debug)]

@@ -2,12 +2,9 @@ use std::fmt::Display;
 
 use crate::{
     github::{
-        action::parser::*,
+        action::{common::GitApplyPatch, parser::*},
         client,
-        data::{
-            GitHubIssueCommentEvent, GitHubIssueCommentEventAction, GitHubIssuesEvent,
-            GitHubIssuesEventAction, GitHubPullRequestEvent, GitHubReaction, GitHubWebhook,
-        },
+        data::{GitHubIssuesEvent, GitHubIssuesEventAction, GitHubPullRequestEvent, GitHubWebhook},
     },
     hacktober::hacktoberfest_label,
 };
@@ -17,35 +14,6 @@ use rocket::http::Status;
 mod apply;
 mod fixup;
 mod workspace;
-
-#[derive(Debug)]
-struct GitApplyPatch {
-    patch: String,
-}
-
-impl TryFrom<String> for GitApplyPatch {
-    type Error = anyhow::Error;
-
-    fn try_from(value: String) -> Result<Self> {
-        let massaged_value = value
-            .trim_start_matches(char::is_whitespace)
-            .replace("\r", "");
-        let lines = massaged_value.split_inclusive("\n");
-        let mut lines_iter = lines.clone().into_iter();
-        let header = lines_iter.next().ok_or_else(|| anyhow!("No header."))?;
-        if !header.starts_with("```diff") {
-            bail!("Not a diff.")
-        }
-        let mut patch = String::new();
-        for line in lines_iter {
-            match line {
-                "```" => break,
-                _ => patch.push_str(line),
-            }
-        }
-        Ok(Self { patch })
-    }
-}
 
 #[derive(Debug)]
 enum MasonCommand {
@@ -70,44 +38,14 @@ impl TryFrom<RawCommand> for MasonCommand {
     }
 }
 
-impl AuthorizedAction<MasonCommand> {
-    async fn execute(&self) -> Result<Box<dyn Display + Send>, (Status, anyhow::Error)> {
-        match &self.action.command {
-            MasonCommand::Fixup => fixup::run(self).await,
-            MasonCommand::Apply(patch) => apply::run(self, patch).await,
-        }
-    }
-}
-
-async fn issue_comment(event: GitHubIssueCommentEvent) -> Status {
-    let repo = event.repository.clone();
-    let comment = event.comment.clone();
-    match event.action {
-        GitHubIssueCommentEventAction::Created => match event.try_into() {
-            Ok(action @ AuthorizedAction::<MasonCommand> { .. }) => match action.execute().await {
-                Ok(result) => {
-                    println!("{}", result);
-                    Status::NoContent
-                }
-                Err((status, err)) => {
-                    let _ = client::unminimize_comment(&comment).await;
-                    let _ = client::create_issue_comment_reaction(
-                        &repo,
-                        &comment,
-                        &GitHubReaction::MinusOne,
-                    )
-                    .await;
-                    eprintln!("ERROR: {:?}", err);
-                    status
-                }
-            },
-            Err(err) => {
-                println!("Failed to parse action from comment: {:?}", err);
-                Status::NoContent
-            }
-        },
-        GitHubIssueCommentEventAction::Edited | GitHubIssueCommentEventAction::Deleted => {
-            Status::NoContent
+#[async_trait]
+impl AuthorizedActionExecutor for MasonCommand {
+    async fn execute(
+        action: AuthorizedAction<MasonCommand>,
+    ) -> Result<Box<dyn Display + Send>, (Status, anyhow::Error)> {
+        match &action.action.command {
+            MasonCommand::Fixup => fixup::run(&action).await,
+            MasonCommand::Apply(patch) => apply::run(&action, &patch).await,
         }
     }
 }
@@ -159,7 +97,9 @@ async fn pull_request(event: GitHubPullRequestEvent) -> Status {
 pub async fn index(webhook: GitHubWebhook) -> Status {
     println!("{:?}", webhook);
     match webhook {
-        GitHubWebhook::IssueComment(event) => issue_comment(event).await,
+        GitHubWebhook::IssueComment(event) => {
+            crate::github::action::handle_issue_comment::<MasonCommand>(event).await
+        }
         GitHubWebhook::Issues(event) => issue_event(event).await,
         GitHubWebhook::PullRequest(event) => pull_request(event).await,
         _ => Status::NotImplemented,
