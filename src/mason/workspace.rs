@@ -1,6 +1,6 @@
 use crate::{
     github::{
-        action_parser::AuthorizedAction,
+        action::parser::AuthorizedAction,
         client,
         data::{GitHubReaction, GitHubRef},
     },

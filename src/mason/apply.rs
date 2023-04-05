@@ -1,4 +1,4 @@
-use crate::github::action_parser::AuthorizedAction;
+use crate::github::action::parser::AuthorizedAction;
 use anyhow::Result;
 use rocket::http::Status;
 use std::fmt::Display;

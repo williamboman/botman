@@ -1,7 +1,7 @@
 use anyhow::{anyhow, bail, Result};
 use std::{fmt::Debug, str::FromStr};
 
-use super::{client, data::*};
+use crate::github::{client, data::*};
 
 #[derive(Debug)]
 pub struct Actionee(pub String);

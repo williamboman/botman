@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::{
     github::{
-        action_parser::*,
+        action::parser::*,
         client,
         data::{
             GitHubIssueCommentEvent, GitHubIssueCommentEventAction, GitHubIssuesEvent,
