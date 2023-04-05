@@ -16,6 +16,11 @@ pub(super) async fn run(
         .await
         .map_err(|err| (Status::InternalServerError, err))?;
 
+    workspace
+        .push()
+        .await
+        .map_err(|err| (Status::InternalServerError, err))?;
+
     Ok(Box::new(format!(
         "Successfully ran mason merge-base in {:?}",
         workspace
