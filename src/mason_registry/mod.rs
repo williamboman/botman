@@ -48,18 +48,6 @@ async fn notify_triage(repo: &GitHubRepo, issue_number: u64, reason: NotifyReaso
         }
         NotifyReason::NewIssue => {}
     }
-
-    if let Ok(comment) = client::create_issue_comment(
-        repo,
-        issue_number,
-        &format!(
-            "@mason-org/triage {}\n\n<sup>This comment ensures a notification is delivered to maintainers.</sup>",
-            reason.explain()
-        ),
-    )
-    .await {
-        let _ = client::minimize_comment(&comment).await;
-    }
 }
 
 async fn issue_event(event: GitHubIssuesEvent) -> Result<Status> {
