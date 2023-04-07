@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+mod fixup;
+
 use crate::{
     github::{
         action::{
@@ -120,6 +122,7 @@ async fn pull_request(event: GitHubPullRequestEvent) -> Result<Status> {
 enum MasonRegistryCommand {
     Apply(GitApplyPatch),
     MergeBase,
+    Fixup,
 }
 
 impl TryFrom<RawCommand> for MasonRegistryCommand {
@@ -134,6 +137,7 @@ impl TryFrom<RawCommand> for MasonRegistryCommand {
                 Ok(Self::Apply(arguments.try_into()?))
             }
             "merge-base" => Ok(Self::MergeBase),
+            "fixup" => Ok(Self::Fixup),
             s => bail!("{} is not a valid mason-registry command.", s),
         }
     }
@@ -151,6 +155,7 @@ impl AuthorizedActionExecutor for MasonRegistryCommand {
             MasonRegistryCommand::MergeBase => {
                 crate::github::action::merge_base::run(&action).await
             }
+            MasonRegistryCommand::Fixup => fixup::run(&action).await,
         }
     }
 }
