@@ -7,6 +7,7 @@ use rocket::http::Status;
 
 pub mod apply;
 pub mod common;
+pub mod merge_base;
 pub mod parser;
 
 pub async fn handle_issue_comment<Command>(event: GitHubIssueCommentEvent) -> Status

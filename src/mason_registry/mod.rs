@@ -119,6 +119,7 @@ async fn pull_request(event: GitHubPullRequestEvent) -> Result<Status> {
 #[derive(Debug)]
 enum MasonRegistryCommand {
     Apply(GitApplyPatch),
+    MergeBase,
 }
 
 impl TryFrom<RawCommand> for MasonRegistryCommand {
@@ -132,6 +133,7 @@ impl TryFrom<RawCommand> for MasonRegistryCommand {
                     .ok_or_else(|| anyhow!("apply is missing arguments."))?;
                 Ok(Self::Apply(arguments.try_into()?))
             }
+            "merge-base" => Ok(Self::MergeBase),
             s => bail!("{} is not a valid mason-registry command.", s),
         }
     }
@@ -145,6 +147,9 @@ impl AuthorizedActionExecutor for MasonRegistryCommand {
         match &action.action.command {
             MasonRegistryCommand::Apply(patch) => {
                 crate::github::action::apply::run(&action, patch).await
+            }
+            MasonRegistryCommand::MergeBase => {
+                crate::github::action::merge_base::run(&action).await
             }
         }
     }

@@ -4,11 +4,14 @@ use anyhow::Result;
 use rocket::http::Status;
 use std::fmt::Display;
 
-use super::MasonCommand;
+use super::parser::RawCommand;
 
-pub(super) async fn run(
-    action: &AuthorizedAction<MasonCommand>,
-) -> Result<Box<dyn Display + Send>, (Status, anyhow::Error)> {
+pub async fn run<Command>(
+    action: &AuthorizedAction<Command>,
+) -> Result<Box<dyn Display + Send>, (Status, anyhow::Error)>
+where
+    Command: TryFrom<RawCommand, Error = anyhow::Error>,
+{
     let workspace = Workspace::create(&action).await?;
 
     workspace
@@ -22,7 +25,7 @@ pub(super) async fn run(
         .map_err(|err| (Status::InternalServerError, err))?;
 
     Ok(Box::new(format!(
-        "Successfully ran mason merge-base in {:?}",
+        "Successfully ran merge-base in {:?}",
         workspace
     )))
 }

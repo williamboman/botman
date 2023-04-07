@@ -12,7 +12,6 @@ use anyhow::{anyhow, bail, Result};
 use rocket::http::Status;
 
 mod fixup;
-mod merge_base;
 
 #[derive(Debug)]
 enum MasonCommand {
@@ -47,7 +46,7 @@ impl AuthorizedActionExecutor for MasonCommand {
         match &action.action.command {
             MasonCommand::Fixup => fixup::run(&action).await,
             MasonCommand::Apply(patch) => crate::github::action::apply::run(&action, patch).await,
-            MasonCommand::MergeBase => merge_base::run(&action).await,
+            MasonCommand::MergeBase => crate::github::action::merge_base::run(&action).await,
         }
     }
 }
