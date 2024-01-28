@@ -2,20 +2,20 @@ FROM rust:1-bullseye AS botman-builder
 
 WORKDIR /app
 COPY . .
-RUN rustup toolchain install nightly-x86_64-unknown-linux-gnu
-RUN cargo +nightly build -r
+RUN rustup toolchain install stable
+RUN cargo build -r
 
 FROM debian:bullseye
 
 # Install & setup Neovim
 RUN apt update && apt install -y git make curl tar unzip
 RUN mkdir /opt/nvim
-RUN curl -fsSL https://github.com/neovim/neovim/releases/download/v0.8.1/nvim-linux64.tar.gz -o /opt/nvim.tar.gz
+RUN curl -fsSL https://github.com/neovim/neovim/releases/download/v0.9.5/nvim-linux64.tar.gz -o /opt/nvim.tar.gz
 RUN tar -xvzf /opt/nvim.tar.gz --strip-components=1 -C /opt/nvim
 ENV PATH="/opt/nvim/bin:${PATH}"
 
 # Install runtime deps
-RUN curl -fsSL -o /tmp/stylua.zip https://github.com/JohnnyMorganz/StyLua/releases/download/v0.17.0/stylua-linux.zip && \
+RUN curl -fsSL -o /tmp/stylua.zip https://github.com/JohnnyMorganz/StyLua/releases/download/v0.18.0/stylua-linux.zip && \
     unzip /tmp/stylua.zip -d /usr/local/bin && \
     rm -f /tmp/stylua.zip
 
