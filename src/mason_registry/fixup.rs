@@ -36,7 +36,7 @@ async fn yml_to_yaml(workspace: &Workspace, changed_files: &HashSet<PathBuf>) ->
     read_dir_recursively(&packages_dir, &mut entries).await?;
     for entry in entries {
         if !changed_files.contains(&entry.path()) {
-            continue
+            continue;
         }
         match entry.file_name().to_string_lossy().deref() {
             file_name if file_name.ends_with(".yml") => {
@@ -56,7 +56,7 @@ async fn yml_to_yaml(workspace: &Workspace, changed_files: &HashSet<PathBuf>) ->
                     .await?;
                 workspace
                     .commit(&format!(
-                        "{}: move {} to {}",
+                        "fix({}): move {} to {}",
                         entry_path
                             .as_path()
                             .parent()
@@ -75,14 +75,17 @@ async fn yml_to_yaml(workspace: &Workspace, changed_files: &HashSet<PathBuf>) ->
     Ok(())
 }
 
-async fn fix_package_whitespaces(workspace: &Workspace, changed_files: &HashSet<PathBuf>) -> Result<()> {
+async fn fix_styling(
+    workspace: &Workspace,
+    changed_files: &HashSet<PathBuf>,
+) -> Result<()> {
     let mut packages_dir = workspace.workdir.path().to_path_buf();
     packages_dir.push("packages");
     let mut entries = vec![];
     read_dir_recursively(&packages_dir, &mut entries).await?;
     for entry in entries {
         if !changed_files.contains(&entry.path()) {
-            continue
+            continue;
         }
         let entry_path = entry.path();
         if !entry_path.is_file() {
@@ -96,6 +99,9 @@ async fn fix_package_whitespaces(workspace: &Workspace, changed_files: &HashSet<
         }
 
         let mut new_file_lines = vec![];
+        if lines.get(0) != Some(&"---".to_string()) {
+            new_file_lines.push("---");
+        }
         for slice in lines.chunks(2) {
             if let (Some(line1), Some(line2)) = (slice.get(0), slice.get(1)) {
                 match (line1.as_str(), line2.as_str()) {
@@ -124,7 +130,7 @@ async fn fix_package_whitespaces(workspace: &Workspace, changed_files: &HashSet<
             .await?;
         let _ = workspace
             .commit(&format!(
-                "{}: fix whitespace",
+                "style({}): fix formatting",
                 entry_path
                     .as_path()
                     .parent()
@@ -156,7 +162,7 @@ pub(super) async fn run(
             })
             .collect::<HashSet<PathBuf>>();
         yml_to_yaml(&workspace, &changed_files).await?;
-        fix_package_whitespaces(&workspace, &changed_files).await?;
+        fix_styling(&workspace, &changed_files).await?;
         workspace.push().await?;
         Ok::<(), anyhow::Error>(())
     }
