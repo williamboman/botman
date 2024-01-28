@@ -18,7 +18,7 @@ mod workspace;
 lazy_static! {
     static ref CLIENT: Client = reqwest::Client::new();
     static ref GITHUB_LOGIN: String = var("GITHUB_LOGIN").expect("No GITHUB_LOGIN.");
-    static ref GITHUB_PAT: String = var("GITHUB_PAT").expect("No PAT.");
+    static ref GITHUB_PAT: String = var("GITHUB_PAT").expect("No GITHUB_PAT.");
     static ref GITHUB_WEBHOOK_SECRET: String =
         var("GITHUB_WEBHOOK_SECRET").expect("No GITHUB_WEBHOOK_SECRET.");
 }

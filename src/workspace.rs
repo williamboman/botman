@@ -9,7 +9,7 @@ use crate::{
 use anyhow::{anyhow, bail, Result};
 use rocket::http::Status;
 use std::{
-    collections::HashSet, ffi::OsStr, fmt::Display, path::PathBuf, process::Stdio, str::FromStr,
+    collections::HashSet, ffi::OsStr, fmt::{Debug, Display}, path::PathBuf, process::Stdio, str::FromStr,
 };
 use tempfile::TempDir;
 use tokio::io::AsyncWriteExt;
@@ -169,7 +169,7 @@ impl Workspace {
 
     pub async fn spawn<I, S>(&self, cmd: S, args: I) -> Result<std::process::Output>
     where
-        I: IntoIterator<Item = S>,
+        I: IntoIterator<Item = S> + Debug + Clone,
         S: AsRef<OsStr> + Display,
     {
         self.spawn_with_stdin(cmd, args, None).await
@@ -182,12 +182,12 @@ impl Workspace {
         stdin: Option<Vec<u8>>,
     ) -> Result<std::process::Output>
     where
-        I: IntoIterator<Item = S>,
+        I: IntoIterator<Item = S> + Debug + Clone,
         S: AsRef<OsStr> + Display,
     {
         let mut child = tokio::process::Command::new(&cmd)
             .current_dir(&self.workdir.path())
-            .args(args)
+            .args(args.clone())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -209,8 +209,8 @@ impl Workspace {
             Ok(output)
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            eprintln!("cmd {} failed:\n{}", cmd, stderr);
-            bail!("{} failed\n{}", cmd, stderr)
+            eprintln!("cmd {} {:?} failed: {}", cmd, args, stderr);
+            bail!("{} failed: {}", cmd, stderr)
         }
     }
 }
