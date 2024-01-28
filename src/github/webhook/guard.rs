@@ -48,12 +48,12 @@ impl<'r> FromData<'r> for GitHubWebhook {
         let payload_str = match data.open(limit).into_string().await {
             Ok(s) if s.is_complete() => s.into_inner(),
             Ok(_) => {
-                return data::Outcome::Failure((
+                return data::Outcome::Error((
                     Status::PayloadTooLarge,
                     anyhow!("Payload exceeds limit {}", limit),
                 ))
             }
-            Err(e) => return data::Outcome::Failure((Status::BadRequest, e.into())),
+            Err(e) => return data::Outcome::Error((Status::BadRequest, e.into())),
         };
 
         let mut hmac = Hmac::<Sha256>::new_from_slice(GITHUB_WEBHOOK_SECRET.as_bytes())
@@ -68,16 +68,16 @@ impl<'r> FromData<'r> for GitHubWebhook {
             if let Ok(()) = hmac.verify_slice(&signature.payload) {
                 return match parse_and_map_json(req, &payload_str) {
                     Ok(value) => data::Outcome::Success(value),
-                    Err(err) => data::Outcome::Failure(err),
+                    Err(err) => data::Outcome::Error(err),
                 };
             } else {
-                return data::Outcome::Failure((
+                return data::Outcome::Error((
                     Status::Forbidden,
                     anyhow!("Mismatching signature."),
                 ));
             }
         } else {
-            return data::Outcome::Failure((
+            return data::Outcome::Error((
                 Status::Unauthorized,
                 anyhow!("Bad or missing signature."),
             ));

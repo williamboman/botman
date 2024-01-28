@@ -28,6 +28,7 @@ enum NotifyReason {
 }
 
 impl NotifyReason {
+    #[allow(dead_code)]
     fn explain(&self) -> String {
         format!("`notify(Reason::{:?})`", self)
     }
