@@ -8,12 +8,14 @@ use super::MasonCommand;
 
 async fn make_generate(workspace: &Workspace) -> Result<()> {
     println!("Generating code…");
-    workspace.spawn("make", ["generate"]).await
+    let _ = workspace.spawn("make", ["generate"]).await?;
+    Ok(())
 }
 
 async fn stylua(workspace: &Workspace) -> Result<()> {
     println!("Running stylua…");
-    workspace.spawn("stylua", ["."]).await
+    let _ = workspace.spawn("stylua", ["."]).await?;
+    Ok(())
 }
 
 async fn restore_generated_code(workspace: &Workspace) -> Result<()> {

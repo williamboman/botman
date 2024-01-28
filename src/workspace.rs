@@ -8,7 +8,9 @@ use crate::{
 };
 use anyhow::{anyhow, bail, Result};
 use rocket::http::Status;
-use std::{ffi::OsStr, fmt::Display, process::Stdio};
+use std::{
+    collections::HashSet, ffi::OsStr, fmt::Display, path::PathBuf, process::Stdio, str::FromStr,
+};
 use tempfile::TempDir;
 use tokio::io::AsyncWriteExt;
 
@@ -86,6 +88,22 @@ impl Workspace {
         Ok(())
     }
 
+    pub async fn get_changed_files(&self) -> Result<HashSet<PathBuf>> {
+        let output = self
+            .spawn("git", ["diff", "--name-only", &self.base.r#ref])
+            .await?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        stdout
+            .split("\n")
+            .filter(|line| !line.is_empty())
+            .map(PathBuf::from_str)
+            .collect::<Result<HashSet<PathBuf>, _>>()
+            .map_err(|_| {
+                anyhow!("Failed to convert `git diff --name-only` line output to PathBuf.")
+            })
+    }
+
     pub async fn merge_with_base(&self) -> Result<()> {
         println!("Merging with {}", self.base.r#ref);
         self.spawn("git", ["fetch", "upstream", &self.base.r#ref])
@@ -143,11 +161,13 @@ impl Workspace {
 
     async fn checkout_ref(&self) -> Result<()> {
         println!("Checking out {}", self.head.r#ref);
-        self.spawn("git", ["checkout", self.head.r#ref.as_str()])
-            .await
+        let _ = self
+            .spawn("git", ["checkout", self.head.r#ref.as_str()])
+            .await?;
+        Ok(())
     }
 
-    pub async fn spawn<I, S>(&self, cmd: S, args: I) -> Result<()>
+    pub async fn spawn<I, S>(&self, cmd: S, args: I) -> Result<std::process::Output>
     where
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr> + Display,
@@ -160,7 +180,7 @@ impl Workspace {
         cmd: S,
         args: I,
         stdin: Option<Vec<u8>>,
-    ) -> Result<()>
+    ) -> Result<std::process::Output>
     where
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr> + Display,
@@ -186,7 +206,7 @@ impl Workspace {
         let output = child.wait_with_output().await?;
 
         if output.status.success() {
-            Ok(())
+            Ok(output)
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
             eprintln!("cmd {} failed:\n{}", cmd, stderr);

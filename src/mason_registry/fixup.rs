@@ -1,5 +1,5 @@
 use anyhow::Result;
-use std::{fmt::Display, path::PathBuf};
+use std::{collections::HashSet, fmt::Display, path::PathBuf};
 
 use async_recursion::async_recursion;
 use lazy_static::__Deref;
@@ -29,12 +29,15 @@ async fn read_dir_recursively(dir: &PathBuf, entries: &mut Vec<DirEntry>) -> Res
     Ok(())
 }
 
-async fn yml_to_yaml(workspace: &Workspace) -> Result<()> {
+async fn yml_to_yaml(workspace: &Workspace, changed_files: &HashSet<PathBuf>) -> Result<()> {
     let mut packages_dir = workspace.workdir.path().to_path_buf();
     packages_dir.push("packages");
     let mut entries = vec![];
     read_dir_recursively(&packages_dir, &mut entries).await?;
     for entry in entries {
+        if !changed_files.contains(&entry.path()) {
+            continue
+        }
         match entry.file_name().to_string_lossy().deref() {
             file_name if file_name.ends_with(".yml") => {
                 let mut new_entry_path = entry.path();
@@ -72,12 +75,15 @@ async fn yml_to_yaml(workspace: &Workspace) -> Result<()> {
     Ok(())
 }
 
-async fn fix_package_whitespaces(workspace: &Workspace) -> Result<()> {
+async fn fix_package_whitespaces(workspace: &Workspace, changed_files: &HashSet<PathBuf>) -> Result<()> {
     let mut packages_dir = workspace.workdir.path().to_path_buf();
     packages_dir.push("packages");
     let mut entries = vec![];
     read_dir_recursively(&packages_dir, &mut entries).await?;
     for entry in entries {
+        if !changed_files.contains(&entry.path()) {
+            continue
+        }
         let entry_path = entry.path();
         if !entry_path.is_file() {
             continue;
@@ -138,8 +144,19 @@ pub(super) async fn run(
     let workspace = Workspace::create(&action).await?;
 
     async {
-        yml_to_yaml(&workspace).await?;
-        fix_package_whitespaces(&workspace).await?;
+        let changed_files = workspace
+            .get_changed_files()
+            .await?
+            .iter()
+            .map(|path| {
+                let mut new_path = PathBuf::new();
+                new_path.push(workspace.workdir.path());
+                new_path.push(path);
+                new_path
+            })
+            .collect::<HashSet<PathBuf>>();
+        yml_to_yaml(&workspace, &changed_files).await?;
+        fix_package_whitespaces(&workspace, &changed_files).await?;
         workspace.push().await?;
         Ok::<(), anyhow::Error>(())
     }
