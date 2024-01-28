@@ -19,3 +19,6 @@ serde_json = "1.0.112"
 sha2 = "0.10.8"
 tempfile = "3"
 tokio = { version = "1.35.1", features = ["process"] }
+
+[dev-dependencies]
+indoc = "2"
