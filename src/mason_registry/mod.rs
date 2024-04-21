@@ -102,6 +102,14 @@ async fn pull_request(event: GitHubPullRequestEvent) -> Result<Status> {
             )
             .await
         }
+        GitHubPullRequestEventAction::Labeled => {
+            if let Some(label) = event.label {
+                match label.name.as_str() {
+                    "status:" => {}
+                    _ => {}
+                }
+            }
+        }
         _ => {}
     }
     Ok(Status::NoContent)

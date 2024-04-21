@@ -137,10 +137,17 @@ pub enum GitHubPullRequestEventAction {
 }
 
 #[derive(Deserialize, Debug, Clone)]
+pub struct GitHubLabel {
+    pub id: u64,
+    pub name: String,
+}
+
+#[derive(Deserialize, Debug, Clone)]
 pub struct GitHubPullRequestEvent {
     pub action: GitHubPullRequestEventAction,
     pub repository: GitHubRepo,
     pub pull_request: GitHubPullRequest,
+    pub label: Option<GitHubLabel>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
