@@ -154,6 +154,7 @@ pub(super) async fn run(
     let workspace = Workspace::create(&action).await?;
 
     async {
+        workspace.merge_with_base().await?;
         let changed_files = workspace
             .get_changed_files()
             .await?
