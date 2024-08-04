@@ -10,12 +10,12 @@ FROM debian:bullseye
 # Install & setup Neovim
 RUN apt update && apt install -y git make curl tar unzip
 RUN mkdir /opt/nvim
-RUN curl -fsSL https://github.com/neovim/neovim/releases/download/v0.9.5/nvim-linux64.tar.gz -o /opt/nvim.tar.gz
-RUN tar -xvzf /opt/nvim.tar.gz --strip-components=1 -C /opt/nvim
+RUN curl -fsSL https://github.com/neovim/neovim/releases/download/v0.10.1/nvim-linux64.tar.gz | \
+    tar -xvzf - --strip-components=1 -C /opt/nvim
 ENV PATH="/opt/nvim/bin:${PATH}"
 
 # Install runtime deps
-RUN curl -fsSL -o /tmp/stylua.zip https://github.com/JohnnyMorganz/StyLua/releases/download/v0.18.0/stylua-linux.zip && \
+RUN curl -fsSL -o /tmp/stylua.zip https://github.com/JohnnyMorganz/StyLua/releases/download/v0.20.0/stylua-linux.zip && \
     unzip /tmp/stylua.zip -d /usr/local/bin && \
     rm -f /tmp/stylua.zip
 
